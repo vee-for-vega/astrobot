@@ -1,0 +1,23 @@
+text,label
+"What is a black hole?",define_concept
+"Define a supernova",define_concept
+"Explain the theory of relativity",define_concept
+"What does magnitude mean?",define_concept
+"Tell me about red giants",define_concept
+"What is the definition of an orbit?",define_concept
+"Calculate the gravity of Mars",request_math
+"Solve for the escape velocity",request_math
+"What is the formula for force?",request_math
+"Help me with this equation",request_math
+"Compute the distance to the sun",request_math
+"Calculate the orbital period",request_math
+"Who discovered the Andromeda galaxy?",historical_fact
+"When was the moon landing?",historical_fact
+"Who was the first person in space?",historical_fact
+"History of the Apollo missions",historical_fact
+"When did Galileo discover Jupiter's moons?",historical_fact
+"Hello there",general_chat
+"Good morning",general_chat
+"Hi bot",general_chat
+"Are you there?",general_chat
+"Goodbye",general_chat

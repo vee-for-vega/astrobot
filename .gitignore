@@ -1,0 +1,12 @@
+.DS_Store
+.env
+__pycache__/
+*.pyc
+data/chroma_db/
+data/refresh_tracker.json
+models/
+logs/
+*.sqlite3
+.vscode/
+.idea/
+*.tar

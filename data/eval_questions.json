@@ -1,0 +1,62 @@
+{
+  "metadata": {
+    "description": "AstroBot evaluation test set",
+    "version": "1.1",
+    "notes": "Intent labels updated to match intent_training.csv: define_concept, request_math, historical_fact, general_chat"
+  },
+  "retrieval_eval": [
+    {"query": "How far away is Mars from our planet?", "expected_source": "how far is mars from earth?", "category": "planets"},
+    {"query": "What's the temperature on Mercury?", "expected_source": "what is the temperature on mercury?", "category": "planets"},
+    {"query": "Tell me about black holes", "expected_source": "what is a black hole?", "category": "black_holes"},
+    {"query": "How big is the Sun compared to Earth?", "expected_source": "how big is the sun?", "category": "stars"},
+    {"query": "Can humans live on Mars?", "expected_source": "can we live on mars?", "category": "planets"},
+    {"query": "What causes an eclipse?", "expected_source": "what is an eclipse?", "category": "phenomena"},
+    {"query": "How old is the universe?", "expected_source": "how old is the universe?", "category": "cosmology"},
+    {"query": "What are Saturn's rings made of?", "expected_source": "what are saturn's rings made of?", "category": "planets"},
+    {"query": "Why does the Moon have craters?", "expected_source": "why does the moon have craters?", "category": "moon"},
+    {"query": "What is a shooting star?", "expected_source": "what is a meteor?", "category": "phenomena"},
+    {"query": "How do astronauts breathe in space?", "expected_source": "how do astronauts breathe in space?", "category": "space_travel"},
+    {"query": "What makes Venus so hot?", "expected_source": "why is venus so hot?", "category": "planets"},
+    {"query": "Is Pluto still a planet?", "expected_source": "is pluto a planet?", "category": "planets"},
+    {"query": "How many galaxies are there?", "expected_source": "how many galaxies are there?", "category": "galaxies"},
+    {"query": "What is a nebula?", "expected_source": "what is a nebula?", "category": "phenomena"},
+    {"query": "Why do stars twinkle at night?", "expected_source": "why do stars twinkle?", "category": "stars"},
+    {"query": "What's the biggest planet in our solar system?", "expected_source": "what is the largest planet?", "category": "planets"},
+    {"query": "How does gravity work in space?", "expected_source": "is there gravity in space?", "category": "physics"},
+    {"query": "What is the Milky Way?", "expected_source": "what is the milky way?", "category": "galaxies"},
+    {"query": "Tell me about comets", "expected_source": "what is a comet?", "category": "phenomena"}
+  ],
+  "faithfulness_eval": [
+    {"query": "How far is Mars from Earth?", "category": "planets"},
+    {"query": "What is a black hole?", "category": "black_holes"},
+    {"query": "How old is the universe?", "category": "cosmology"},
+    {"query": "What are Saturn's rings made of?", "category": "planets"},
+    {"query": "Is Pluto a planet?", "category": "planets"},
+    {"query": "What is the Milky Way?", "category": "galaxies"},
+    {"query": "Why is Venus so hot?", "category": "planets"},
+    {"query": "What is a nebula?", "category": "phenomena"},
+    {"query": "How do astronauts breathe in space?", "category": "space_travel"},
+    {"query": "What is the largest planet in the solar system?", "category": "planets"}
+  ],
+  "intent_eval": [
+    {"query": "What is a black hole?", "expected_intent": "define_concept"},
+    {"query": "Define a neutron star", "expected_intent": "define_concept"},
+    {"query": "What does parallax mean?", "expected_intent": "define_concept"},
+    {"query": "Explain how nebulae form", "expected_intent": "define_concept"},
+    {"query": "Tell me about white dwarfs", "expected_intent": "define_concept"},
+    {"query": "Calculate the escape velocity", "expected_intent": "request_math"},
+    {"query": "Solve this equation for me", "expected_intent": "request_math"},
+    {"query": "What is the formula for gravitational force?", "expected_intent": "request_math"},
+    {"query": "Compute the distance to Alpha Centauri", "expected_intent": "request_math"},
+    {"query": "Who discovered the Hubble expansion?", "expected_intent": "historical_fact"},
+    {"query": "When was the first spacewalk?", "expected_intent": "historical_fact"},
+    {"query": "History of the Voyager missions", "expected_intent": "historical_fact"},
+    {"query": "Who was the first woman in space?", "expected_intent": "historical_fact"},
+    {"query": "When did we land on the Moon?", "expected_intent": "historical_fact"},
+    {"query": "Hello there", "expected_intent": "general_chat"},
+    {"query": "Hi AstroBot", "expected_intent": "general_chat"},
+    {"query": "Good morning", "expected_intent": "general_chat"},
+    {"query": "Goodbye", "expected_intent": "general_chat"},
+    {"query": "Are you still there?", "expected_intent": "general_chat"}
+  ]
+}
