@@ -1,0 +1,23 @@
+# Local Terraform working directories
+**/.terraform/*
+
+# State files — contain resource IDs, sometimes secrets. Never commit.
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# Crash logs
+crash.log
+crash.*.log
+
+# Variable files — may contain secrets or per-user values
+*.tfvars
+*.tfvars.json
+!example.tfvars
+
+# CLI config
+.terraformrc
+terraform.rc
+
+# Lock file is intentionally committed (pins provider versions across the team).
+# !.terraform.lock.hcl
