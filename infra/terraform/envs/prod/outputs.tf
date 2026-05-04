@@ -32,3 +32,13 @@ output "api_key_parameter_name" {
   description = "Set the real API key with: aws ssm put-parameter --name <this> --value sk-ant-... --type SecureString --overwrite"
   value       = module.compute.api_key_parameter_name
 }
+
+output "site_url" {
+  description = "Public URL of the site. CloudFront *.cloudfront.net hostname over HTTPS."
+  value       = "https://${module.cdn.distribution_domain_name}"
+}
+
+output "cloudfront_distribution_id" {
+  description = "Use with: aws cloudfront create-invalidation --distribution-id <this> --paths '/*'"
+  value       = module.cdn.distribution_id
+}

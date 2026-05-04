@@ -71,5 +71,12 @@ resource "aws_iam_role_policy_attachment" "ec2_runtime" {
   policy_arn = aws_iam_policy.ec2_runtime.arn
 }
 
-# Coming next:
-#   module "cdn" { ... }   # CloudFront in front of S3 + OAC bucket policy
+module "cdn" {
+  source = "../../modules/cdn"
+
+  project_name                     = var.project_name
+  site_bucket_id                   = module.storage.bucket_id
+  site_bucket_arn                  = module.storage.bucket_arn
+  site_bucket_regional_domain_name = module.storage.bucket_regional_domain_name
+  api_origin_domain                = module.compute.eip_public_dns
+}
