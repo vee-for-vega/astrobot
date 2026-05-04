@@ -1,0 +1,53 @@
+#!/bin/bash
+set -euo pipefail
+exec > >(tee /var/log/astrobot-bootstrap.log | logger -t user-data) 2>&1
+
+dnf update -y
+dnf install -y docker
+systemctl enable --now docker
+
+ECR_REGISTRY="$(echo "${ecr_url}" | cut -d/ -f1)"
+
+# Wrapper script that systemd will run. Re-logs in to ECR and re-pulls every
+# time it runs, so a fresh image deploys cleanly with `systemctl restart astrobot`.
+cat > /usr/local/bin/run-astrobot.sh <<EOF
+#!/bin/bash
+set -euo pipefail
+
+aws ecr get-login-password --region ${region} | \
+  docker login --username AWS --password-stdin $ECR_REGISTRY
+
+docker pull ${ecr_url}:latest
+
+API_KEY=\$(aws ssm get-parameter --region ${region} \
+  --name ${ssm_param_name} --with-decryption \
+  --query 'Parameter.Value' --output text)
+
+docker rm -f astrobot 2>/dev/null || true
+
+exec docker run --rm --name astrobot \
+  -p 80:8000 \
+  -e ANTHROPIC_API_KEY="\$API_KEY" \
+  ${ecr_url}:latest
+EOF
+chmod +x /usr/local/bin/run-astrobot.sh
+
+cat > /etc/systemd/system/astrobot.service <<'EOF'
+[Unit]
+Description=Astrobot chatbot
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/run-astrobot.sh
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable --now astrobot.service

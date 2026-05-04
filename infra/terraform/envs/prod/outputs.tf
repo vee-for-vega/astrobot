@@ -17,3 +17,18 @@ output "ecr_repository_url" {
   description = "Tag and push the bot image as <this>:<tag>."
   value       = module.ecr.repository_url
 }
+
+output "bot_public_ip" {
+  description = "Stable Elastic IP of the bot EC2."
+  value       = module.compute.public_ip
+}
+
+output "bot_instance_id" {
+  description = "Use with: aws ssm start-session --target <this>"
+  value       = module.compute.instance_id
+}
+
+output "api_key_parameter_name" {
+  description = "Set the real API key with: aws ssm put-parameter --name <this> --value sk-ant-... --type SecureString --overwrite"
+  value       = module.compute.api_key_parameter_name
+}
