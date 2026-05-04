@@ -18,6 +18,11 @@ variable "region" {
 
 # t3.small for now. Switch to t4g.small once stable —
 # requires the ARM (linux/arm64) Docker image variant.
+variable "bucket_suffix" {
+  description = "Suffix for S3 bucket names to keep them globally unique. Reuse the bootstrap suffix."
+  type        = string
+}
+
 variable "instance_type" {
   description = "EC2 instance type for the chatbot host."
   type        = string
