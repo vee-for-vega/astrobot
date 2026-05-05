@@ -241,7 +241,7 @@ Tier 1 corpus answers continue to serve, with a banner explaining the cap.
 - [x] Evaluation harness (retrieval hit rate, faithfulness, intent classification)
 - [x] Structured JSON logging with retrieval metadata
 
-### Completed (Phase 2 — Production deployment)
+### Completed (Production deployment)
 - [x] **IaC** — Terraform: VPC, IAM, S3, ECR, EC2 + Docker + EBS, CloudFront with OAC, SSM SecureString secrets
 - [x] **FastAPI web server** — JWT auth, sliding-window rate limit, daily token-budget cap with Tier 1 graceful fallback
 - [x] **Frontend UI** — vanilla-JS CLI terminal with command history and `tier`/`sources`/`stats` commands
