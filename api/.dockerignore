@@ -1,0 +1,31 @@
+# Python build artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local virtualenvs
+.venv/
+venv/
+env/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Don't ship terraform, tests, logs, or local secrets to the image
+infra/
+logs/
+.git/
+.gitignore
+.env
+.env.*
+*.tfstate
+*.tfvars
+
+# Don't ship the README into the image either
+README.md
