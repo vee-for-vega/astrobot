@@ -44,6 +44,10 @@ COPY --chown=app:app src/ ./src/
 COPY --chown=app:app data/ ./data/
 COPY --chown=app:app models/ ./models/
 
+# bot_controller writes to /app/logs at import time. WORKDIR is root-owned;
+# create the dir with app ownership so the non-root runtime user can write.
+RUN mkdir -p /app/logs && chown -R app:app /app/logs
+
 USER app
 
 EXPOSE 8000
