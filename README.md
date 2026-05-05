@@ -105,32 +105,127 @@ RAG faithfulness (4.11/5) is lower than no-RAG accuracy (4.90/5) because the LLM
 
 ---
 
+## Live demo
+
+Hosted on AWS (CloudFront + EC2 + S3). Password-gated to keep token spend bounded.
+URL and password are on my resume.
+
+The site is a CLI-style terminal — type `help` for commands. Commands like `tier`,
+`sources`, and `stats` expose the underlying retrieval and routing so you can
+see *how* an answer was produced, not just what it said.
+
 ## Project Structure
 
 ```
 ├── requirements.txt
-├── .env.example
 │
-├── src/
-│   ├── scrape_data.py           # Scrapes Q&A from NASA + Cool Cosmos
-│   ├── clean_corpus.py          # Text cleaning pipeline
-│   ├── train_bert.py            # Fine-tunes DistilBERT for intent classification
+├── api/                         # FastAPI server (deployed to EC2 via Docker)
+│   ├── api_server.py            # Endpoints: /login, /chat, /health, /stats
+│   ├── auth.py                  # JWT (HS256) issuing + verification
+│   ├── chat_engine.py           # Programmatic tiered pipeline
+│   ├── limits.py                # Rate limit + daily token budget cap
+│   └── Dockerfile               # Multi-stage, non-root, prebaked HF model
+│
+├── web/                         # Static frontend (S3 + CloudFront)
+│   ├── index.html
+│   ├── terminal.js              # CLI state machine, vanilla JS
+│   └── style.css
+│
+├── src/                         # Original ML/RAG pipeline
+│   ├── scrape_data.py
+│   ├── clean_corpus.py
+│   ├── train_bert.py            # Fine-tunes DistilBERT for intent
 │   ├── build_vector_store.py    # Embeds corpus into ChromaDB
-│   ├── bot_controller.py        # Main chatbot — tiered routing, RAG, Claude API
-│   └── run_evals.py             # Evaluation harness (retrieval, faithfulness, intent)
+│   ├── bot_controller.py         # Tiered routing, RAG, Claude API
+│   └── run_evals.py             # Evaluation harness
 │
 ├── data/
 │   ├── astronomy_corpus.yml     # 323 Q&A pairs from NASA + Cool Cosmos
-│   ├── intent_training.csv      # Intent classification training data
-│   ├── eval_questions.json      # Evaluation test set
+│   ├── intent_training.csv
+│   ├── eval_questions.json
 │   └── chroma_db/               # ChromaDB vector store (generated)
 │
-├── models/                      # Fine-tuned DistilBERT (generated, not tracked)
-├── logs/                        # Structured logs + eval results (not tracked)
+├── infra/terraform/             # IaC for the whole AWS stack
+│   ├── bootstrap/               # S3 + native locking for remote state
+│   ├── envs/prod/               # composes the modules
+│   └── modules/
+│       ├── network/             # VPC, public subnets, IGW, routing
+│       ├── iam/                 # EC2 role with SSM + CloudWatch
+│       ├── storage/             # Private S3 bucket for the static site
+│       ├── ecr/                 # Private Docker registry
+│       ├── compute/             # EC2 + EBS + EIP + secrets in SSM
+│       └── cdn/                 # CloudFront with OAC, dual origin
 │
-└── infra/                       # Terraform + deployment (planned)
-    └── terraform/
+├── scripts/
+│   ├── set-secrets.sh           # Set Anthropic key, demo password, JWT key
+│   ├── deploy-image.sh          # Build, push to ECR, restart service
+│   └── deploy-web.sh            # Sync to S3, invalidate CloudFront
+│
+├── models/                      # Fine-tuned DistilBERT (generated)
+└── logs/                        # Structured logs (not tracked)
 ```
+
+## Architecture (AWS deployment)
+
+```
+                          ┌──────────────────────┐
+                          │  Browser             │
+                          └──────────┬───────────┘
+                                     │ HTTPS
+                                     ▼
+                          ┌──────────────────────┐
+                          │  CloudFront          │  TLS, gzip/brotli, edge cache
+                          │  (default cert)      │
+                          └─────┬───────────┬────┘
+                                │           │
+                       /  /api/*│           │/, /index.html, etc.
+                                ▼           ▼
+            ┌────────────────────────┐   ┌────────────────────┐
+            │  EC2 t3.small          │   │  S3 (private)      │
+            │  Docker: FastAPI       │   │  HTML/JS/CSS       │
+            │   ├─ JWT auth          │   │  read via OAC      │
+            │   ├─ rate limit        │   └────────────────────┘
+            │   ├─ budget cap        │
+            │   └─ tiered RAG        │
+            └────┬───────────────────┘
+                 │ instance role
+                 ▼
+            ┌─────────────────────────────────────────┐
+            │  SSM SecureString (3 KMS-encrypted)     │
+            │   /astrobot/anthropic_api_key           │
+            │   /astrobot/auth_password               │
+            │   /astrobot/jwt_signing_key             │
+            └─────────────────────────────────────────┘
+```
+
+## Deploy
+
+```bash
+# 1. Provision (one-time)
+cd infra/terraform/bootstrap
+terraform apply -var="account_suffix=<your-suffix>"
+
+cd ../envs/prod
+echo 'bucket_suffix = "<your-suffix>"' > terraform.tfvars
+terraform apply
+
+# 2. Set the three secrets (one-time, prompts for values)
+./scripts/set-secrets.sh
+
+# 3. Build + push the bot image
+./scripts/deploy-image.sh
+
+# 4. Sync the frontend
+./scripts/deploy-web.sh
+```
+
+The site URL is in `terraform output site_url`.
+
+## Cost
+
+Roughly $18/mo for the always-on stack (EC2 t3.small + EBS + CloudFront).
+Anthropic API spend is capped at $1/day in-app. When the budget is exhausted,
+Tier 1 corpus answers continue to serve, with a banner explaining the cap.
 
 ---
 
@@ -146,17 +241,19 @@ RAG faithfulness (4.11/5) is lower than no-RAG accuracy (4.90/5) because the LLM
 - [x] Evaluation harness (retrieval hit rate, faithfulness, intent classification)
 - [x] Structured JSON logging with retrieval metadata
 
+### Completed (Phase 2 — Production deployment)
+- [x] **IaC** — Terraform: VPC, IAM, S3, ECR, EC2 + Docker + EBS, CloudFront with OAC, SSM SecureString secrets
+- [x] **FastAPI web server** — JWT auth, sliding-window rate limit, daily token-budget cap with Tier 1 graceful fallback
+- [x] **Frontend UI** — vanilla-JS CLI terminal with command history and `tier`/`sources`/`stats` commands
+
 ### In Progress
-- [ ] **IaC** — Terraform infrastructure (EC2 + S3 + IAM + Docker)
-- [ ] **Improve eval framework** — relax retrieval matching to fuzzy/semantic match instead of exact string, expand test set beyond 20 queries
-- [ ] **Improve intent classifier** — add more training data, expand math keyword shortcuts for formula-related queries
-- [ ] **Scrape more data** — expand corpus beyond Cool Cosmos and NASA Imagine; add data from NASA Science, ESA, and astronomy textbooks
-- [ ] **FastAPI web server** — `api_server.py` REST API
-- [ ] **Frontend UI** — interactive web interface for the chatbot
-- [ ] **Migrate to Amazon OpenSearch** — swap ChromaDB for managed vector DB when corpus exceeds ~10K chunks
-- [ ] **Obsidian knowledge base integration** — ingest structured Obsidian vaults as an additional knowledge source for RAG
-- [ ] **LoRA fine-tuning** — fine-tune a small open-source LLM (Llama/Mistral) on the astronomy corpus for offline inference
-- [ ] **CI/CD pipeline** — automated eval runs on push, deploy on merge to main
+- [ ] **CI/CD via GitHub Actions + OIDC** — keyless deploys, auto-eval on push
+- [ ] **Improve eval framework** — fuzzy/semantic match for retrieval, expand test set beyond 20 queries
+- [ ] **Improve intent classifier** — more training data, expand math keyword shortcuts
+- [ ] **Scrape more data** — NASA Science, ESA, textbooks
+- [ ] **Migrate to Amazon OpenSearch** — managed vector DB once corpus > ~10K chunks
+- [ ] **Obsidian knowledge base integration** — ingest structured vaults as RAG sources
+- [ ] **LoRA fine-tuning** — Llama/Mistral on the corpus for offline inference
 
 ---
 
