@@ -54,9 +54,9 @@ data "aws_iam_policy_document" "ec2_runtime" {
   }
 
   statement {
-    sid       = "SsmReadApiKey"
+    sid       = "SsmReadSecrets"
     actions   = ["ssm:GetParameter", "ssm:GetParameters"]
-    resources = [module.compute.api_key_parameter_arn]
+    resources = module.compute.secret_parameter_arns
   }
 }
 

@@ -1,3 +1,8 @@
+output "region" {
+  description = "AWS region for this env. Used by deploy scripts."
+  value       = var.region
+}
+
 output "vpc_id" {
   description = "VPC the prod env runs in."
   value       = module.network.vpc_id
@@ -31,6 +36,16 @@ output "bot_instance_id" {
 output "api_key_parameter_name" {
   description = "Set the real API key with: aws ssm put-parameter --name <this> --value sk-ant-... --type SecureString --overwrite"
   value       = module.compute.api_key_parameter_name
+}
+
+output "auth_password_parameter_name" {
+  description = "Set the demo password with: aws ssm put-parameter --name <this> --value '<password>' --type SecureString --overwrite"
+  value       = module.compute.auth_password_parameter_name
+}
+
+output "jwt_signing_key_parameter_name" {
+  description = "Set the JWT signing key (any random string >32 chars). aws ssm put-parameter --name <this> --value '<random>' --type SecureString --overwrite"
+  value       = module.compute.jwt_signing_key_parameter_name
 }
 
 output "site_url" {

@@ -8,8 +8,6 @@ systemctl enable --now docker
 
 ECR_REGISTRY="$(echo "${ecr_url}" | cut -d/ -f1)"
 
-# Wrapper script that systemd will run. Re-logs in to ECR and re-pulls every
-# time it runs, so a fresh image deploys cleanly with `systemctl restart astrobot`.
 cat > /usr/local/bin/run-astrobot.sh <<EOF
 #!/bin/bash
 set -euo pipefail
@@ -20,7 +18,15 @@ aws ecr get-login-password --region ${region} | \
 docker pull ${ecr_url}:latest
 
 API_KEY=\$(aws ssm get-parameter --region ${region} \
-  --name ${ssm_param_name} --with-decryption \
+  --name ${api_key_param_name} --with-decryption \
+  --query 'Parameter.Value' --output text)
+
+AUTH_PW=\$(aws ssm get-parameter --region ${region} \
+  --name ${auth_password_param} --with-decryption \
+  --query 'Parameter.Value' --output text)
+
+JWT_KEY=\$(aws ssm get-parameter --region ${region} \
+  --name ${jwt_signing_key_param} --with-decryption \
   --query 'Parameter.Value' --output text)
 
 docker rm -f astrobot 2>/dev/null || true
@@ -28,6 +34,8 @@ docker rm -f astrobot 2>/dev/null || true
 exec docker run --rm --name astrobot \
   -p 80:8000 \
   -e ANTHROPIC_API_KEY="\$API_KEY" \
+  -e AUTH_PASSWORD="\$AUTH_PW" \
+  -e JWT_SIGNING_KEY="\$JWT_KEY" \
   ${ecr_url}:latest
 EOF
 chmod +x /usr/local/bin/run-astrobot.sh
