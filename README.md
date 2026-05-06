@@ -187,7 +187,16 @@ see *how* an answer was produced, not just what it said.
             │   ├─ rate limit        │   └────────────────────┘
             │   ├─ budget cap        │
             │   └─ tiered RAG        │
-            └────┬───────────────────┘
+            └────┬─────────┬─────────┘
+                 │         │ /app/data bind-mount
+                 │         ▼
+                 │   ┌──────────────────────────────┐
+                 │   │  EBS gp3 10 GB (encrypted)   │
+                 │   │  /var/lib/astrobot-data      │
+                 │   │   ├─ chroma_db/              │
+                 │   │   ├─ astronomy_corpus.yml    │
+                 │   │   └─ refresh_tracker.json    │
+                 │   └──────────────────────────────┘
                  │ instance role
                  ▼
             ┌─────────────────────────────────────────┐
@@ -197,6 +206,24 @@ see *how* an answer was produced, not just what it said.
             │   /astrobot/jwt_signing_key             │
             └─────────────────────────────────────────┘
 ```
+
+## Persistence
+
+ChromaDB and the corpus YAML live on a dedicated 10 GB gp3 EBS volume mounted at
+`/var/lib/astrobot-data` on the host, bind-mounted into the container at
+`/app/data`. The volume is its own Terraform resource — separate from the EC2
+root — so it survives:
+
+- container restarts (deploys via `deploy-image.sh`)
+- EC2 replacement (Terraform-driven, e.g. `user_data` changes)
+
+It does **not** survive AZ failure or accidental volume deletion. That's the job
+of Layer 3 (S3 versioned backup of the volume's contents on every
+`save_to_corpus()` call) — listed in the roadmap.
+
+First boot seeds the volume from the image's baked-in `data/` directory. After
+that, the volume is the source of truth and the seed is skipped. To push corpus
+changes from local to prod, see `scripts/push-corpus.sh` (planned).
 
 ## Deploy
 
@@ -223,7 +250,7 @@ The site URL is in `terraform output site_url`.
 
 ## Cost
 
-Roughly $18/mo for the always-on stack (EC2 t3.small + EBS + CloudFront).
+Roughly $19/mo for the always-on stack (EC2 t3.small + 30 GB root EBS + 10 GB data EBS + CloudFront).
 Anthropic API spend is capped at $1/day in-app. When the budget is exhausted,
 Tier 1 corpus answers continue to serve, with a banner explaining the cap.
 
@@ -231,7 +258,7 @@ Tier 1 corpus answers continue to serve, with a banner explaining the cap.
 
 ## Roadmap
 
-### Completed
+### Completed (Original project)
 - [x] Claude API integration
 - [x] RAG pipeline (ChromaDB + sentence-transformers, cosine similarity)
 - [x] Tiered response routing (Tier 1 direct / Tier 2 RAG / Tier 3 LLM-only)
@@ -245,13 +272,14 @@ Tier 1 corpus answers continue to serve, with a banner explaining the cap.
 - [x] **IaC** — Terraform: VPC, IAM, S3, ECR, EC2 + Docker + EBS, CloudFront with OAC, SSM SecureString secrets
 - [x] **FastAPI web server** — JWT auth, sliding-window rate limit, daily token-budget cap with Tier 1 graceful fallback
 - [x] **Frontend UI** — vanilla-JS CLI terminal with command history and `tier`/`sources`/`stats` commands
+- [x] **Persistent vector store** — dedicated EBS gp3 volume for ChromaDB + corpus YAML, separate from EC2 root, survives instance replacement
 
 ### In Progress
 - [ ] **CI/CD via GitHub Actions + OIDC** — keyless deploys, auto-eval on push
 - [ ] **Improve eval framework** — fuzzy/semantic match for retrieval, expand test set beyond 20 queries
 - [ ] **Improve intent classifier** — more training data, expand math keyword shortcuts
 - [ ] **Scrape more data** — NASA Science, ESA, textbooks
-- [ ] **Migrate to Amazon OpenSearch** — managed vector DB once corpus > ~10K chunks
+- [ ] **Layered durability** — S3 versioned backup of EBS contents on every corpus save (Layer 3); migrate to OpenSearch Serverless when corpus exceeds ~10K chunks (Layer 4)
 - [ ] **Obsidian knowledge base integration** — ingest structured vaults as RAG sources
 - [ ] **LoRA fine-tuning** — Llama/Mistral on the corpus for offline inference
 
