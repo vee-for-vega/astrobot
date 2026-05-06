@@ -30,3 +30,9 @@ variable "root_volume_size_gb" {
   type    = number
   default = 30
 }
+
+variable "data_volume_size_gb" {
+  description = "Dedicated EBS volume for /var/lib/astrobot-data (Chroma + corpus). Survives EC2 replacement."
+  type        = number
+  default     = 10
+}

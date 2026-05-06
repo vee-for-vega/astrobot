@@ -137,3 +137,30 @@ resource "aws_eip_association" "bot" {
   instance_id   = aws_instance.bot.id
   allocation_id = aws_eip.bot.id
 }
+
+# Dedicated volume for ChromaDB + corpus YAML. Lives outside the EC2 root
+# volume so it survives instance replacement (e.g. user_data changes).
+resource "aws_ebs_volume" "data" {
+  availability_zone = aws_instance.bot.availability_zone
+  size              = var.data_volume_size_gb
+  type              = "gp3"
+  encrypted         = true
+
+  tags = {
+    Name = "${var.project_name}-data"
+  }
+
+  # Don't recreate the volume just because tweak its tags or size in place.
+  lifecycle {
+    prevent_destroy = false # flip to true once you have data you can't afford to lose
+  }
+}
+
+resource "aws_volume_attachment" "data" {
+  device_name = "/dev/sdf"
+  volume_id   = aws_ebs_volume.data.id
+  instance_id = aws_instance.bot.id
+
+  # If the EC2 is replaced, detach cleanly so the new instance can attach.
+  stop_instance_before_detaching = true
+}

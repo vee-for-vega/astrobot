@@ -7,6 +7,40 @@ dnf install -y docker
 systemctl enable --now docker
 
 ECR_REGISTRY="$(echo "${ecr_url}" | cut -d/ -f1)"
+DATA_MOUNT="/var/lib/astrobot-data"
+
+# --- Mount the dedicated EBS volume at $DATA_MOUNT ---
+
+# Find the unmounted, non-root block device. On Nitro instances the EBS
+# volume attached as /dev/sdf shows up under a NVMe name (e.g. /dev/nvme1n1).
+DATA_DEV=""
+for _ in $(seq 1 30); do
+  DATA_DEV=$(lsblk -ndo NAME,TYPE,MOUNTPOINT | awk '$2=="disk" && $3=="" {print "/dev/"$1; exit}')
+  [ -n "$DATA_DEV" ] && break
+  sleep 2
+done
+
+if [ -z "$DATA_DEV" ]; then
+  echo "FATAL: data volume never appeared" >&2
+  exit 1
+fi
+echo "data volume: $DATA_DEV"
+
+# Format only if there's no filesystem yet. Idempotent across reboots
+# and across EC2 replacements that re-attach the same volume.
+if ! blkid "$DATA_DEV" >/dev/null 2>&1; then
+  mkfs.xfs -L astrobot-data "$DATA_DEV"
+fi
+
+mkdir -p "$DATA_MOUNT"
+grep -q astrobot-data /etc/fstab || \
+  echo "LABEL=astrobot-data $DATA_MOUNT xfs defaults,nofail 0 2" >> /etc/fstab
+mount -a
+
+# Container's app user is UID/GID 1000. Match on host so the bind mount works.
+chown -R 1000:1000 "$DATA_MOUNT"
+
+# --- Wrapper script that systemd runs ---
 
 cat > /usr/local/bin/run-astrobot.sh <<EOF
 #!/bin/bash
@@ -16,6 +50,16 @@ aws ecr get-login-password --region ${region} | \
   docker login --username AWS --password-stdin $ECR_REGISTRY
 
 docker pull ${ecr_url}:latest
+
+# Seed $DATA_MOUNT from the image on first run. Idempotent: only fires when
+# chroma_db is missing, so existing data is never overwritten.
+if [ ! -d $DATA_MOUNT/chroma_db ]; then
+  echo "seeding $DATA_MOUNT from image..."
+  docker create --name astrobot-seed ${ecr_url}:latest > /dev/null
+  docker cp astrobot-seed:/app/data/. $DATA_MOUNT/
+  docker rm astrobot-seed > /dev/null
+  chown -R 1000:1000 $DATA_MOUNT
+fi
 
 API_KEY=\$(aws ssm get-parameter --region ${region} \
   --name ${api_key_param_name} --with-decryption \
@@ -33,6 +77,7 @@ docker rm -f astrobot 2>/dev/null || true
 
 exec docker run --rm --name astrobot \
   -p 80:8000 \
+  -v $DATA_MOUNT:/app/data \
   -e ANTHROPIC_API_KEY="\$API_KEY" \
   -e AUTH_PASSWORD="\$AUTH_PW" \
   -e JWT_SIGNING_KEY="\$JWT_KEY" \
@@ -43,7 +88,7 @@ chmod +x /usr/local/bin/run-astrobot.sh
 cat > /etc/systemd/system/astrobot.service <<'EOF'
 [Unit]
 Description=Astrobot chatbot
-After=docker.service network-online.target
+After=docker.service network-online.target var-lib-astrobot\x2ddata.mount
 Requires=docker.service
 Wants=network-online.target
 
