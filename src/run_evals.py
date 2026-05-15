@@ -38,6 +38,11 @@ COLLECTION_NAME = 'astronomy_qa'
 TOP_K_RESULTS = 3
 ANTHROPIC_MODEL = "claude-sonnet-4-6"
 
+# Cosine similarity threshold for the semantic-match fallback in retrieval eval.
+# 0.75 keeps paraphrases (e.g. "how hot is mercury?" vs "what is the temperature on
+# mercury?") as hits while still rejecting topically-related-but-wrong matches.
+SEMANTIC_MATCH_THRESHOLD = 0.75
+
 SYSTEM_PROMPT = """You are AstroBot, an expert astronomy and space science assistant.
 
 Your knowledge covers: planets, stars, galaxies, black holes, exoplanets, 
@@ -92,6 +97,8 @@ def load_dependencies():
 
 
 def eval_retrieval(components: dict) -> dict:
+    from sentence_transformers import util as st_util
+
     print("=" * 60)
     print("  EVAL 1: RETRIEVAL QUALITY")
     print("=" * 60)
@@ -101,6 +108,7 @@ def eval_retrieval(components: dict) -> dict:
     collection = components['collection']
 
     hits = 0
+    semantic_only_hits = 0
     reciprocal_ranks = []
     results_detail = []
 
@@ -115,20 +123,49 @@ def eval_retrieval(components: dict) -> dict:
             include=['documents', 'metadatas', 'distances']
         )
 
-        found_rank = None
-        retrieved_questions = []
+        retrieved_qs = [
+            results['metadatas'][0][i].get('question', '').strip().lower()
+            for i in range(len(results['metadatas'][0]))
+        ]
+        retrieved_distances = [results['distances'][0][i] for i in range(len(retrieved_qs))]
 
-        for i in range(len(results['metadatas'][0])):
-            retrieved_q = results['metadatas'][0][i].get('question', '').strip().lower()
-            distance = results['distances'][0][i]
-            retrieved_questions.append({
-                'question': retrieved_q,
-                'distance': round(distance, 4),
-                'rank': i + 1
-            })
-            if expected in retrieved_q or retrieved_q in expected:
-                if found_rank is None:
+        # Pass 1: cheap substring check
+        found_rank = None
+        match_type = None
+        match_sim = None
+        for i, rq in enumerate(retrieved_qs):
+            if expected in rq or rq in expected:
+                found_rank = i + 1
+                match_type = 'substring'
+                break
+
+        # Pass 2: semantic fallback. The substring matcher misses paraphrases
+        # (e.g. expected "what is the temperature on mercury?" vs retrieved
+        # "how hot is mercury?"). Embed expected + each retrieved question and
+        # accept the first one above SEMANTIC_MATCH_THRESHOLD.
+        sims = [None] * len(retrieved_qs)
+        if found_rank is None and retrieved_qs:
+            expected_emb = embedding_model.encode([expected], convert_to_tensor=True)
+            retrieved_embs = embedding_model.encode(retrieved_qs, convert_to_tensor=True)
+            sim_row = st_util.cos_sim(expected_emb, retrieved_embs)[0]
+            sims = [float(s) for s in sim_row]
+            for i, sim in enumerate(sims):
+                if sim >= SEMANTIC_MATCH_THRESHOLD:
                     found_rank = i + 1
+                    match_type = 'semantic'
+                    match_sim = round(sim, 4)
+                    semantic_only_hits += 1
+                    break
+
+        retrieved_questions = [
+            {
+                'question': retrieved_qs[i],
+                'distance': round(retrieved_distances[i], 4),
+                'similarity_to_expected': round(sims[i], 4) if sims[i] is not None else None,
+                'rank': i + 1,
+            }
+            for i in range(len(retrieved_qs))
+        ]
 
         hit = found_rank is not None
         if hit:
@@ -137,28 +174,41 @@ def eval_retrieval(components: dict) -> dict:
         else:
             reciprocal_ranks.append(0.0)
 
-        status = f"HIT (rank {found_rank})" if hit else "MISS"
+        if hit and match_type == 'semantic':
+            status = f"HIT (rank {found_rank}, semantic sim={match_sim})"
+        elif hit:
+            status = f"HIT (rank {found_rank})"
+        else:
+            status = "MISS"
         print(f"  [{status}] \"{query[:50]}\"")
         if not hit:
+            top_sim = sims[0] if sims and sims[0] is not None else 0.0
             print(f"          Expected: \"{expected[:50]}\"")
-            print(f"          Got:      \"{retrieved_questions[0]['question'][:50]}\"")
+            print(f"          Got:      \"{retrieved_questions[0]['question'][:50]}\" (sim={top_sim:.3f})")
 
         results_detail.append({
             'query': query, 'expected_source': expected,
-            'hit': hit, 'found_rank': found_rank, 'retrieved': retrieved_questions
+            'hit': hit, 'found_rank': found_rank,
+            'match_type': match_type, 'match_similarity': match_sim,
+            'retrieved': retrieved_questions,
         })
 
     hit_rate = hits / len(eval_questions)
     mrr = sum(reciprocal_ranks) / len(reciprocal_ranks)
+    substring_hits = hits - semantic_only_hits
 
     print(f"\n  --- Retrieval Results ---")
     print(f"  Hit Rate @ {TOP_K_RESULTS}: {hit_rate:.1%} ({hits}/{len(eval_questions)})")
+    print(f"     substring: {substring_hits}   semantic (sim >= {SEMANTIC_MATCH_THRESHOLD}): {semantic_only_hits}")
     print(f"  MRR:                        {mrr:.3f}")
     print()
 
     return {
         'hit_rate': round(hit_rate, 4), 'mrr': round(mrr, 4),
-        'total_queries': len(eval_questions), 'hits': hits, 'details': results_detail
+        'total_queries': len(eval_questions), 'hits': hits,
+        'substring_hits': substring_hits, 'semantic_hits': semantic_only_hits,
+        'semantic_threshold': SEMANTIC_MATCH_THRESHOLD,
+        'details': results_detail,
     }
 
 
