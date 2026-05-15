@@ -77,10 +77,10 @@ Evaluated on a curated test set of 20 retrieval queries, 19 intent classificatio
 
 | Metric | Score |
 |--------|-------|
-| **Hit Rate @ 3** | 35.0% (7/20) |
-| **MRR** | 0.325 |
+| **Hit Rate @ 3** | 75.0% (15/20) |
+| **MRR** | 0.700 |
 
-The 35% hit rate reflects a strict matching criterion — many queries retrieve semantically correct answers that are phrased differently than the expected source. For example, "What's the temperature on Mercury?" retrieves "how hot is mercury?" at rank 1 (distance 0.27), which is the right answer under a different question. The eval framework counts this as a miss because the `expected_source` string doesn't match. Relaxing the match criteria or expanding the eval set are planned improvements.
+The matcher does a substring check first, then falls back to cosine similarity (≥ 0.75) between the expected and retrieved questions using the same MiniLM embeddings as retrieval. Of the 15 hits, 7 are exact substring matches and 8 come from the semantic fallback — those are queries like "What's the temperature on Mercury?" that retrieve "how hot is mercury?" at rank 1, which the old strict-substring matcher counted as a miss. The 5 remaining misses split into a real ranking failure (the exact-text question gets buried under a topically related entry), an eval-label bug (expected source doesn't match what's actually in the corpus), and two paraphrases sitting just below the threshold. Next: hybrid BM25 + dense retrieval, eval-set audit, and growing the test set past 20 queries.
 
 ### Intent Classification (DistilBERT)
 
@@ -276,7 +276,7 @@ Tier 1 corpus answers continue to serve, with a banner explaining the cap.
 
 ### In Progress
 - [ ] **CI/CD via GitHub Actions + OIDC** — keyless deploys, auto-eval on push
-- [ ] **Improve eval framework** — fuzzy/semantic match for retrieval, expand test set beyond 20 queries
+- [ ] **Improve eval framework** — semantic-match fallback shipped (35% → 75% hit rate); next: hybrid BM25 + dense retrieval, eval-set audit, expand test set beyond 20 queries
 - [ ] **Improve intent classifier** — more training data, expand math keyword shortcuts
 - [ ] **Scrape more data** — NASA Science, ESA, textbooks
 - [ ] **Layered durability** — S3 versioned backup of EBS contents on every corpus save (Layer 3); migrate to OpenSearch Serverless when corpus exceeds ~10K chunks (Layer 4)
