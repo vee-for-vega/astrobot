@@ -4,9 +4,15 @@ __pycache__/
 *.pyc
 data/chroma_db/
 data/refresh_tracker.json
+data/pending_corpus.yml
 models/
 logs/
 *.sqlite3
 .vscode/
 .idea/
 *.tar
+
+# web build artifacts
+web/node_modules/
+web/dist/
+web/.vite/

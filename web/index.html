@@ -1,35 +1,13 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>astrobot ~ misha</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <main id="terminal" aria-live="polite">
-    <header id="banner">
-      <pre>
-             (o)
-           ___I__
-         / [_____]\
-        |          |
-       *|  [0]  [0]|*
-        |          |
-        |  [|||||] |
-         \________/
-      </pre>
-      <div class="meta">
-        <strong>astrobot</strong> RAG astronomy assistant<br>
-        type <code>help</code> for commands. password required.
-      </div>
-    </header>
-    <output id="output"></output>
-    <div id="prompt-line">
-      <span id="prompt">guest@astrobot:~$</span>
-      <input id="input" autocomplete="off" autofocus spellcheck="false" type="text">
-    </div>
-  </main>
-  <script src="terminal.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/robot.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AstroBot</title>
+  </head>
+  <body class="bg-white text-neutral-900 antialiased">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>
