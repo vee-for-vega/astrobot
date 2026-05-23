@@ -1,0 +1,13 @@
+{
+  "star": { "name": "Sun", "mass": 1.0 },
+  "planets": [
+    { "name": "Mercury", "elements": { "a": 0.387, "e": 0.2056, "i": 7.00,  "period": 87.97,    "M0": 174.796 } },
+    { "name": "Venus",   "elements": { "a": 0.723, "e": 0.0068, "i": 3.39,  "period": 224.70,   "M0": 50.115  } },
+    { "name": "Earth",   "elements": { "a": 1.000, "e": 0.0167, "i": 0.00,  "period": 365.25,   "M0": 357.529 } },
+    { "name": "Mars",    "elements": { "a": 1.524, "e": 0.0934, "i": 1.85,  "period": 686.97,   "M0": 19.373  } },
+    { "name": "Jupiter", "elements": { "a": 5.203, "e": 0.0484, "i": 1.30,  "period": 4332.59,  "M0": 20.020  } },
+    { "name": "Saturn",  "elements": { "a": 9.537, "e": 0.0541, "i": 2.49,  "period": 10759.22, "M0": 317.020 } },
+    { "name": "Uranus",  "elements": { "a": 19.19, "e": 0.0472, "i": 0.77,  "period": 30688.50, "M0": 142.238 } },
+    { "name": "Neptune", "elements": { "a": 30.07, "e": 0.0086, "i": 1.77,  "period": 60182.00, "M0": 256.228 } }
+  ]
+}
