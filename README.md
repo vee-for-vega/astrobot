@@ -110,9 +110,11 @@ RAG faithfulness (4.11/5) is lower than no-RAG accuracy (4.90/5) because the LLM
 Hosted on AWS (CloudFront + EC2 + S3). Password-gated to keep token spend bounded.
 URL and password are on my resume.
 
-The site is a CLI-style terminal — type `help` for commands. Commands like `tier`,
-`sources`, and `stats` expose the underlying retrieval and routing so you can
-see *how* an answer was produced, not just what it said.
+The site is a React chat UI built around the trajectory-visualization product:
+ask about a planet's orbit and the bot returns an animated 2D orbit card
+(top view + side view) inline as an answer. Other astronomy questions
+hit the tiered RAG pipeline; generated answers carry a "not yet verified"
+disclaimer and are auto-staged for admin review before joining the corpus.
 
 ## Project Structure
 
@@ -122,25 +124,52 @@ see *how* an answer was produced, not just what it said.
 ├── api/                         # FastAPI server (deployed to EC2 via Docker)
 │   ├── api_server.py            # Endpoints: /login, /chat, /health, /stats
 │   ├── auth.py                  # JWT (HS256) issuing + verification
-│   ├── chat_engine.py           # Programmatic tiered pipeline
+│   ├── chat_engine.py           # Tiered pipeline + auto-stage tier 2/3 answers
+│   ├── trajectory.py            # Deterministic orbit fast path, fuzzy planet match
+│   ├── save_guard.py            # 3-layer validator (structural / intent / LLM-as-judge)
+│   ├── pending.py               # Admin-review queue (data/pending_corpus.yml)
+│   ├── dev_server.py            # Lightweight UI-only local server (no torch/chroma)
 │   ├── limits.py                # Rate limit + daily token budget cap
 │   └── Dockerfile               # Multi-stage, non-root, prebaked HF model
 │
-├── web/                         # Static frontend (S3 + CloudFront)
+├── web/                         # React frontend (Vite build → S3 + CloudFront)
+│   ├── package.json
+│   ├── vite.config.ts           # /api dev proxy + tailwind plugin
 │   ├── index.html
-│   ├── terminal.js              # CLI state machine, vanilla JS
-│   └── style.css
+│   ├── public/robot.png         # Assistant avatar
+│   └── src/
+│       ├── main.tsx             # React entry
+│       ├── App.tsx              # Auth gate + chat shell
+│       ├── api.ts               # Typed /api client
+│       ├── types.ts             # ChatResponse, Trajectory, OrbitalElements
+│       ├── kepler.ts            # Analytical solver + ellipse path emitter
+│       ├── components/
+│       │   ├── Chat.tsx
+│       │   ├── Message.tsx      # Text or inline OrbitCard
+│       │   ├── OrbitCard.tsx    # Top + side view answer strip
+│       │   ├── TopView.tsx      # Animated SVG ellipse
+│       │   ├── SideView.tsx     # Animated inclination line
+│       │   ├── PlanetInfo.tsx
+│       │   ├── PromptInput.tsx
+│       │   ├── WelcomeHero.tsx
+│       │   ├── LoginGate.tsx
+│       │   ├── RobotAvatar.tsx
+│       │   ├── SuggestionChips.tsx
+│       │   └── ThinkingIndicator.tsx
+│       └── data/solar-system.json
 │
-├── src/                         # Original ML/RAG pipeline
+├── src/                         # ML/RAG pipeline
 │   ├── scrape_data.py
 │   ├── clean_corpus.py
 │   ├── train_bert.py            # Fine-tunes DistilBERT for intent
 │   ├── build_vector_store.py    # Embeds corpus into ChromaDB
-│   ├── bot_controller.py         # Tiered routing, RAG, Claude API
+│   ├── bot_controller.py        # Tiered routing, RAG, Claude API, corpus learning
 │   └── run_evals.py             # Evaluation harness
 │
 ├── data/
 │   ├── astronomy_corpus.yml     # 323 Q&A pairs from NASA + Cool Cosmos
+│   ├── orbital_elements.yml     # J2000 Keplerian elements for 8 planets
+│   ├── pending_corpus.yml       # Admin-review queue (gitignored)
 │   ├── intent_training.csv
 │   ├── eval_questions.json
 │   └── chroma_db/               # ChromaDB vector store (generated)
@@ -159,7 +188,8 @@ see *how* an answer was produced, not just what it said.
 ├── scripts/
 │   ├── set-secrets.sh           # Set Anthropic key, demo password, JWT key
 │   ├── deploy-image.sh          # Build, push to ECR, restart service
-│   └── deploy-web.sh            # Sync to S3, invalidate CloudFront
+│   ├── deploy-web.sh            # Vite build → S3 sync → CloudFront invalidate
+│   └── review_pending.py        # Admin CLI: approve/reject pending corpus entries
 │
 ├── models/                      # Fine-tuned DistilBERT (generated)
 └── logs/                        # Structured logs (not tracked)
@@ -225,59 +255,50 @@ First boot seeds the volume from the image's baked-in `data/` directory. After
 that, the volume is the source of truth and the seed is skipped. To push corpus
 changes from local to prod, see `scripts/push-corpus.sh` (planned).
 
-## Deploy
-
-```bash
-# 1. Provision (one-time)
-cd infra/terraform/bootstrap
-terraform apply -var="account_suffix=<your-suffix>"
-
-cd ../envs/prod
-echo 'bucket_suffix = "<your-suffix>"' > terraform.tfvars
-terraform apply
-
-# 2. Set the three secrets (one-time, prompts for values)
-./scripts/set-secrets.sh
-
-# 3. Build + push the bot image
-./scripts/deploy-image.sh
-
-# 4. Sync the frontend
-./scripts/deploy-web.sh
-```
-
-The site URL is in `terraform output site_url`.
-
-## Cost
-
-Roughly $19/mo for the always-on stack (EC2 t3.small + 30 GB root EBS + 10 GB data EBS + CloudFront).
-Anthropic API spend is capped at $1/day in-app. When the budget is exhausted,
-Tier 1 corpus answers continue to serve, with a banner explaining the cap.
-
----
-
 ## Roadmap
 
-### Completed (Original project)
-- [x] Claude API integration
-- [x] RAG pipeline (ChromaDB + sentence-transformers, cosine similarity)
-- [x] Tiered response routing (Tier 1 direct / Tier 2 RAG / Tier 3 LLM-only)
-- [x] Content freshness system (6-month refresh cycle with Claude enrichment)
-- [x] Corpus learning loop (human-in-the-loop answer approval)
-- [x] DistilBERT intent classifier (fine-tuned, 84.2% accuracy)
-- [x] Evaluation harness (retrieval hit rate, faithfulness, intent classification)
-- [x] Structured JSON logging with retrieval metadata
+### Key components
 
-### Completed (Production deployment)
-- [x] **IaC** — Terraform: VPC, IAM, S3, ECR, EC2 + Docker + EBS, CloudFront with OAC, SSM SecureString secrets
-- [x] **FastAPI web server** — JWT auth, sliding-window rate limit, daily token-budget cap with Tier 1 graceful fallback
-- [x] **Frontend UI** — vanilla-JS CLI terminal with command history and `tier`/`sources`/`stats` commands
-- [x] **Persistent vector store** — dedicated EBS gp3 volume for ChromaDB + corpus YAML, separate from EC2 root, survives instance replacement
+**ML / RAG pipeline**
+- Claude API integration with cost-capped budget and Tier 1 graceful fallback
+- RAG pipeline — ChromaDB + sentence-transformers (MiniLM-L6-v2), cosine similarity
+- Tiered response routing — Tier 1 corpus direct / Tier 2 RAG-augmented / Tier 3 Claude only
+- DistilBERT intent classifier — fine-tuned, 84.2% accuracy
+- Content freshness system — 6-month refresh cycle with Claude enrichment, original NASA facts preserved
+- Evaluation harness — retrieval hit rate, faithfulness, intent classification with LLM-as-judge
+- Structured JSON logging with retrieval metadata for offline analysis
 
-### In Progress
+**Trajectory visualization**
+- Animated 2D orbit cards rendered inline in the chat as answer strips — top view (ellipse from the focus) + side view (inclination relative to the ecliptic)
+- Analytical Kepler solver — no N-body simulation; works for any star + planet given six orbital elements
+- Deterministic trajectory fast path — zero LLM tokens for orbit questions, fuzzy planet matching (`difflib`) tolerates typos like "marz" or "earths"
+- Pure SVG, B&W aesthetic, RAF-driven animation; same component renders solar planets and exoplanets
+
+**Safety and admin workflow**
+- Auto-stage every Tier 2/3 answer to a pending corpus for human review before it joins the verified knowledge base
+- Three-layer save guard — structural (length, compound-prompt detection) + intent (DistilBERT veto on `general_chat`) + Haiku LLM-as-judge
+- Hardened system prompt — refuses compound off-topic prompts and generative content (essays, code, translations) regardless of framing
+- CLI admin review tool (`scripts/review_pending.py`) — approve promotes to corpus + ChromaDB, reject marks the entry; never blocks the live chat
+- "Generated answer — not yet in the verified corpus" disclaimer on every unverified message
+
+**Web frontend**
+- React 19 + TypeScript + Vite + Tailwind 4 single-page app
+- JWT-gated chat UI with centered welcome state, suggestion clicks, and inline trajectory cards
+- Lightweight dev server (`api/dev_server.py`) — exercises the full UI flow without torch/Chroma/transformers, useful for fast iteration
+
+**Production deployment**
+- IaC — Terraform: VPC, IAM, S3, ECR, EC2 + Docker + EBS, CloudFront with OAC, SSM SecureString secrets
+- FastAPI web server — JWT auth (HS256), sliding-window rate limit, daily token-budget cap
+- Persistent vector store — dedicated EBS gp3 volume for ChromaDB + corpus YAML, separate from EC2 root, survives instance replacement
+
+### To do
 - [ ] **CI/CD via GitHub Actions + OIDC** — keyless deploys, auto-eval on push
 - [ ] **Improve eval framework** — semantic-match fallback shipped (35% → 75% hit rate); next: hybrid BM25 + dense retrieval, eval-set audit, expand test set beyond 20 queries
-- [ ] **Improve intent classifier** — more training data, expand math keyword shortcuts
+- [ ] **Improve intent classifier** — more training data, add a `request_trajectory` intent, expand math keyword shortcuts
+- [ ] **Production observability** — Langfuse traces + RAGAS metrics, dashboards for latency / cost / retrieval quality
+- [ ] **Adversarial eval suite** — PromptFoo prompt-injection cases against `/api/chat` and the save guard
+- [ ] **Pin-the-answer** — let users pin a trajectory card so it stays visible across the conversation
+- [ ] **Exoplanet ML pipeline integration** — feed predicted systems into the orbit card UI alongside the solar-system data
 - [ ] **Scrape more data** — NASA Science, ESA, textbooks
 - [ ] **Layered durability** — S3 versioned backup of EBS contents on every corpus save (Layer 3); migrate to OpenSearch Serverless when corpus exceeds ~10K chunks (Layer 4)
 - [ ] **Obsidian knowledge base integration** — ingest structured vaults as RAG sources
@@ -293,7 +314,9 @@ Tier 1 corpus answers continue to serve, with a banner explaining the cap.
 
 ## Tech Stack
 
-Python, PyTorch, Anthropic Claude API, ChromaDB, Sentence-Transformers, DistilBERT, SymPy, Terraform, Docker, AWS (EC2, S3, IAM)
+**Backend:** Python, FastAPI, PyTorch, Anthropic Claude API, ChromaDB, Sentence-Transformers, DistilBERT, SymPy
+**Frontend:** React 19, TypeScript, Vite, Tailwind CSS 4
+**Infra:** Terraform, Docker, AWS (EC2, S3, CloudFront, IAM, SSM)
 
 ## License
 
