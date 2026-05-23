@@ -2,8 +2,11 @@
 
 Returns structured dicts with tier, similarity, sources, and token usage —
 the API exposes these to the frontend so the CLI can render them."""
+import logging
 import os
 import sys
+
+logger = logging.getLogger("astrobot.chat_engine")
 
 # bot_controller lives in src/. PYTHONPATH set in the Dockerfile, but add it
 # here too so the module imports cleanly under uvicorn-reload local dev.
@@ -17,7 +20,9 @@ from bot_controller import (  # type: ignore
     embedding_model,
     client,
     collection,
+    predict_intent,
     retrieve_context,
+    save_to_corpus,
     ANTHROPIC_MODEL,
     DIRECT_ANSWER_THRESHOLD,
     MAX_HISTORY_TURNS,
@@ -25,6 +30,39 @@ from bot_controller import (  # type: ignore
     RETRIEVAL_RELEVANCE_THRESHOLD,
     SYSTEM_PROMPT,
 )
+from api.pending import append_pending
+from api.save_guard import ValidationError, validate as validate_for_save
+from api.trajectory import maybe_trajectory_response
+
+__all__ = [
+    "BudgetExhausted",
+    "chat_once",
+    "client",
+    "predict_intent",
+    "save_to_corpus",
+]
+
+
+def _auto_submit_for_review(question: str, answer: str) -> None:
+    """Best-effort: stage a Tier 2/3 Q&A for admin review.
+
+    Runs the structural + intent guards (Layers 1 and 2) but skips the LLM
+    judge — the human review is the final gate, so a per-question Claude
+    call would just be cost without value. Silent on any failure.
+    """
+    try:
+        intent_label, _ = predict_intent(question)
+    except Exception:
+        intent_label = None
+    try:
+        validate_for_save(question, answer, intent_label=intent_label)
+    except ValidationError as e:
+        logger.info("auto-submit rejected: %s", e.reason)
+        return
+    try:
+        append_pending(question, answer)
+    except Exception:
+        logger.exception("auto-submit append_pending failed")
 
 FALLBACK_THRESHOLD = 0.45  # for budget-exhausted Tier 1 fallback
 
@@ -62,6 +100,13 @@ def _extract_answer(hit: dict) -> str:
 def chat_once(question: str, history: list[dict] | None = None,
               llm_disabled: bool = False) -> dict:
     history = history or []
+
+    # Trajectory fast path. Deterministic, no LLM call, returns a structured
+    # payload the frontend renders as an animated OrbitCard.
+    traj = maybe_trajectory_response(question)
+    if traj is not None:
+        return traj
+
     hits = _retrieve_top(question, n=3)
     sources = [
         {"question": h["meta"].get("question", ""), "similarity": h["similarity"]}
@@ -118,9 +163,14 @@ def chat_once(question: str, history: list[dict] | None = None,
         system=SYSTEM_PROMPT,
         messages=messages,
     )
+    answer_text = response.content[0].text
+
+    # Auto-stage for admin review. Pending entries are not retrieved in chat;
+    # they live in data/pending_corpus.yml until scripts/review_pending.py runs.
+    _auto_submit_for_review(question, answer_text)
 
     return {
-        "answer": response.content[0].text,
+        "answer": answer_text,
         "tier": tier,
         "similarity": top_sim,
         "sources": sources,

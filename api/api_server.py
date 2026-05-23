@@ -3,7 +3,9 @@
 Endpoints:
   GET  /api/health   — liveness check, no auth
   POST /api/login    — exchange shared password for a 1h JWT
-  POST /api/chat     — auth required, runs the tiered pipeline
+  POST /api/chat     — auth required, runs the tiered pipeline; Tier 2/3
+                      answers are auto-submitted to data/pending_corpus.yml
+                      for admin review via scripts/review_pending.py
   GET  /api/stats    — auth required, current budget + rate-limit state
 """
 import logging
@@ -57,6 +59,7 @@ class ChatResponse(BaseModel):
     fallback: bool
     tokens: dict | None = None
     cost_usd: float | None = None
+    trajectory: dict | None = None
 
 
 # ---------- endpoints ----------
@@ -113,6 +116,7 @@ def chat(req: ChatRequest, payload: dict = Depends(auth.require_token)) -> ChatR
         fallback=result["fallback"],
         tokens=result.get("tokens"),
         cost_usd=cost,
+        trajectory=result.get("trajectory"),
     )
 
 
