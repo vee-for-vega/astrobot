@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
-# Sync web/ to S3 and invalidate CloudFront so the new files go live.
+# Build the vite app and sync web/dist to S3, then invalidate CloudFront.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+echo "→ npm ci && npm run build (web/)"
+cd "$REPO_ROOT/web"
+npm ci
+npm run build
+
 cd "$REPO_ROOT/infra/terraform/envs/prod"
 
 BUCKET=$(terraform output -raw site_bucket)
@@ -11,14 +17,14 @@ SITE_URL=$(terraform output -raw site_url)
 
 cd "$REPO_ROOT"
 
-echo "→ aws s3 sync web/ -> s3://$BUCKET"
+echo "→ aws s3 sync web/dist/ -> s3://$BUCKET"
 # HTML: short cache, must-revalidate (so updates show up on hard reload).
-# JS/CSS: longer cache; CloudFront invalidation is what makes them update.
-aws s3 sync web/ "s3://$BUCKET/" --delete \
+# Hashed JS/CSS assets: long cache; CloudFront invalidation handles refresh.
+aws s3 sync web/dist/ "s3://$BUCKET/" --delete \
   --exclude "*" --include "*.html" \
   --cache-control "public, max-age=60, must-revalidate"
 
-aws s3 sync web/ "s3://$BUCKET/" --delete \
+aws s3 sync web/dist/ "s3://$BUCKET/" --delete \
   --exclude "*.html" \
   --cache-control "public, max-age=86400"
 
