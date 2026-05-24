@@ -5,7 +5,7 @@ import PromptInput from "./PromptInput";
 import SuggestionChips from "./SuggestionChips";
 import Message from "./Message";
 import ThinkingIndicator from "./ThinkingIndicator";
-import { chat, clearToken, HttpError } from "../api";
+import { chat, HttpError } from "../api";
 
 const SUGGESTIONS = [
   "Show me the trajectory of Mars",
@@ -14,11 +14,7 @@ const SUGGESTIONS = [
   "Show me Mercury's path",
 ];
 
-type Props = {
-  onUnauthorized: () => void;
-};
-
-export default function Chat({ onUnauthorized }: Props) {
+export default function Chat() {
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,13 +42,10 @@ export default function Chat({ onUnauthorized }: Props) {
         },
       ]);
     } catch (err) {
-      if (err instanceof HttpError && err.status === 401) {
-        clearToken();
-        onUnauthorized();
-        return;
-      }
       if (err instanceof HttpError && err.status === 429) {
         setError(`Rate limited. Retry in ~${err.retryAfter ?? "?"}s.`);
+      } else if (err instanceof HttpError && err.status === 503) {
+        setError(err.detail ?? "Daily LLM budget exhausted. Try again tomorrow.");
       } else if (err instanceof HttpError) {
         setError(err.detail ?? `Error ${err.status}`);
       } else {

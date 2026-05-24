@@ -107,8 +107,7 @@ RAG faithfulness (4.11/5) is lower than no-RAG accuracy (4.90/5) because the LLM
 
 ## Live demo
 
-Hosted on AWS (CloudFront + EC2 + S3). Password-gated to keep token spend bounded.
-URL and password are on my resume.
+Hosted on AWS (CloudFront + EC2 + S3). URL is on my resume.
 
 The site is a React chat UI built around the trajectory-visualization product:
 ask about a planet's orbit and the bot returns an animated 2D orbit card
@@ -123,7 +122,6 @@ disclaimer and are auto-staged for admin review before joining the corpus.
 │
 ├── api/                         # FastAPI server (deployed to EC2 via Docker)
 │   ├── api_server.py            # Endpoints: /login, /chat, /health, /stats
-│   ├── auth.py                  # JWT (HS256) issuing + verification
 │   ├── chat_engine.py           # Tiered pipeline + auto-stage tier 2/3 answers
 │   ├── trajectory.py            # Deterministic orbit fast path, fuzzy planet match
 │   ├── save_guard.py            # 3-layer validator (structural / intent / LLM-as-judge)
@@ -186,7 +184,7 @@ disclaimer and are auto-staged for admin review before joining the corpus.
 │       └── cdn/                 # CloudFront with OAC, dual origin
 │
 ├── scripts/
-│   ├── set-secrets.sh           # Set Anthropic key, demo password, JWT key
+│   ├── set-secrets.sh           # Set Anthropic API key in SSM
 │   ├── deploy-image.sh          # Build, push to ECR, restart service
 │   ├── deploy-web.sh            # Vite build → S3 sync → CloudFront invalidate
 │   └── review_pending.py        # Admin CLI: approve/reject pending corpus entries
@@ -213,9 +211,9 @@ disclaimer and are auto-staged for admin review before joining the corpus.
             ┌────────────────────────┐   ┌────────────────────┐
             │  EC2 t3.small          │   │  S3 (private)      │
             │  Docker: FastAPI       │   │  HTML/JS/CSS       │
-            │   ├─ JWT auth          │   │  read via OAC      │
-            │   ├─ rate limit        │   └────────────────────┘
-            │   ├─ budget cap        │
+            │   ├─ rate limit (IP)   │   │  read via OAC      │
+            │   ├─ budget cap        │   └────────────────────┘
+            │   ├─ trajectory branch │
             │   └─ tiered RAG        │
             └────┬─────────┬─────────┘
                  │         │ /app/data bind-mount
@@ -230,10 +228,8 @@ disclaimer and are auto-staged for admin review before joining the corpus.
                  │ instance role
                  ▼
             ┌─────────────────────────────────────────┐
-            │  SSM SecureString (3 KMS-encrypted)     │
+            │  SSM SecureString (KMS-encrypted)       │
             │   /astrobot/anthropic_api_key           │
-            │   /astrobot/auth_password               │
-            │   /astrobot/jwt_signing_key             │
             └─────────────────────────────────────────┘
 ```
 
@@ -283,12 +279,12 @@ changes from local to prod, see `scripts/push-corpus.sh` (planned).
 
 **Web frontend**
 - React 19 + TypeScript + Vite + Tailwind 4 single-page app
-- JWT-gated chat UI with centered welcome state, suggestion clicks, and inline trajectory cards
+- Chat UI with centered welcome state, suggestion chips, and inline trajectory cards
 - Lightweight dev server (`api/dev_server.py`) — exercises the full UI flow without torch/Chroma/transformers, useful for fast iteration
 
 **Production deployment**
 - IaC — Terraform: VPC, IAM, S3, ECR, EC2 + Docker + EBS, CloudFront with OAC, SSM SecureString secrets
-- FastAPI web server — JWT auth (HS256), sliding-window rate limit, daily token-budget cap
+- FastAPI web server — sliding-window rate limit and daily Anthropic-spend cap as the abuse ceiling
 - Persistent vector store — dedicated EBS gp3 volume for ChromaDB + corpus YAML, separate from EC2 root, survives instance replacement
 
 ### To do

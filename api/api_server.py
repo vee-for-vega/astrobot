@@ -1,28 +1,30 @@
 """FastAPI app for the AstroBot demo.
 
 Endpoints:
-  GET  /api/health   — liveness check, no auth
-  POST /api/login    — exchange shared password for a 1h JWT
-  POST /api/chat     — auth required, runs the tiered pipeline; Tier 2/3
-                      answers are auto-submitted to data/pending_corpus.yml
-                      for admin review via scripts/review_pending.py
-  GET  /api/stats    — auth required, current budget + rate-limit state
+  GET  /api/health   — liveness check
+  POST /api/chat     — runs the tiered pipeline; Tier 2/3 answers are
+                      auto-submitted to data/pending_corpus.yml for admin
+                      review via scripts/review_pending.py
+  GET  /api/stats    — current budget + rate-limit state
+
+No auth. Rate limit is per client IP (sliding window) and a hard daily
+USD cap on Anthropic spend acts as the global abuse ceiling.
 """
 import logging
 import os
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from api import auth, limits
+from api import limits
 from api.chat_engine import BudgetExhausted, chat_once
 
 logger = logging.getLogger("astrobot.api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
-app = FastAPI(title="AstroBot API", version="0.1.0")
+app = FastAPI(title="AstroBot API", version="0.2.0")
 
 # Enable permissive CORS only for local dev. Prod request goes same-origin
 # through CloudFront, so this is off by default.
@@ -36,15 +38,6 @@ if os.environ.get("ENABLE_CORS") == "1":
 
 
 # ---------- request / response models ----------
-
-class LoginRequest(BaseModel):
-    password: str = Field(..., min_length=1, max_length=200)
-
-
-class LoginResponse(BaseModel):
-    token: str
-    expires_in: int
-
 
 class ChatRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=1000)
@@ -62,6 +55,17 @@ class ChatResponse(BaseModel):
     trajectory: dict | None = None
 
 
+# ---------- helpers ----------
+
+def _client_ip(request: Request) -> str:
+    """Get the original client IP. Behind CloudFront, X-Forwarded-For
+    carries the real IP at the front of a comma-separated list."""
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
 # ---------- endpoints ----------
 
 @app.get("/api/health")
@@ -69,20 +73,14 @@ def health() -> dict:
     return {"status": "ok"}
 
 
-@app.post("/api/login", response_model=LoginResponse)
-def login(req: LoginRequest) -> LoginResponse:
-    if not auth.verify_password(req.password):
-        raise HTTPException(status_code=401, detail="invalid password")
-    issued = auth.issue_token()
-    return LoginResponse(token=issued["token"], expires_in=issued["expires_in"])
-
-
 @app.post("/api/chat", response_model=ChatResponse)
-def chat(req: ChatRequest, payload: dict = Depends(auth.require_token)) -> ChatResponse:
-    jti = payload.get("jti", "anon")
+def chat(req: ChatRequest, request: Request) -> ChatResponse:
+    ip = _client_ip(request)
 
-    allowed, retry = limits.check_rate_limit(jti)
-    if not allowed:
+    # Pre-check rate limit. Free tiers don't increment the bucket — only
+    # Claude-touching calls do (recorded after chat_once returns below).
+    blocked, retry = limits.is_blocked(ip)
+    if blocked:
         return JSONResponse(
             status_code=429,
             headers={"Retry-After": str(retry)},
@@ -107,6 +105,8 @@ def chat(req: ChatRequest, payload: dict = Depends(auth.require_token)) -> ChatR
             result["tokens"]["input"], result["tokens"]["output"]
         )
         cost = round(cost, 6)
+        # Only Claude-touching requests count against the per-IP rate limit.
+        limits.record_request(ip)
 
     return ChatResponse(
         answer=result["answer"],
@@ -121,5 +121,5 @@ def chat(req: ChatRequest, payload: dict = Depends(auth.require_token)) -> ChatR
 
 
 @app.get("/api/stats")
-def stats(payload: dict = Depends(auth.require_token)) -> dict:
+def stats() -> dict:
     return limits.stats()

@@ -1,4 +1,4 @@
-"""In-memory rate limit (per JWT id) and daily token-budget tracker.
+"""In-memory rate limit (per client IP) and daily token-budget tracker.
 
 State is process-local. Resets when the container restarts. Fine for a
 single-instance demo. Swap for DynamoDB if we ever scale out."""
@@ -8,12 +8,12 @@ from collections import defaultdict, deque
 from datetime import datetime, timezone
 from threading import Lock
 
-# Per-JWT sliding window
+# Per-key sliding window (key is the caller's IP)
 RATE_LIMIT_REQUESTS = int(os.environ.get("RATE_LIMIT_REQUESTS", "30"))
 RATE_LIMIT_WINDOW_SECS = int(os.environ.get("RATE_LIMIT_WINDOW_SECS", "3600"))
 
-# Daily Anthropic spend cap (USD)
-DAILY_BUDGET_USD = float(os.environ.get("DAILY_BUDGET_USD", "1.00"))
+# Daily Anthropic spend cap (USD). Hard ceiling for abuse-without-auth.
+DAILY_BUDGET_USD = float(os.environ.get("DAILY_BUDGET_USD", "0.50"))
 
 # Sonnet 4.6 pricing per million tokens
 INPUT_PRICE_PER_MTOK = 3.00
@@ -26,19 +26,32 @@ _rate_buckets: dict[str, deque] = defaultdict(deque)
 _rate_lock = Lock()
 
 
-def check_rate_limit(jti: str) -> tuple[bool, int]:
-    """Returns (allowed, retry_after_seconds)."""
+def is_blocked(key: str) -> tuple[bool, int]:
+    """Check the rate limit WITHOUT recording. Returns (blocked, retry_after).
+
+    Free (Tier 1 / trajectory) requests don't increment the bucket — only
+    record_request() does. See record_request() below."""
     now = time.time()
     cutoff = now - RATE_LIMIT_WINDOW_SECS
     with _rate_lock:
-        bucket = _rate_buckets[jti]
+        bucket = _rate_buckets[key]
         while bucket and bucket[0] < cutoff:
             bucket.popleft()
         if len(bucket) >= RATE_LIMIT_REQUESTS:
             retry = int(bucket[0] + RATE_LIMIT_WINDOW_SECS - now) + 1
-            return False, retry
+            return True, retry
+        return False, 0
+
+
+def record_request(key: str) -> None:
+    """Increment the rate-limit bucket. Called only for Claude-touching calls."""
+    now = time.time()
+    cutoff = now - RATE_LIMIT_WINDOW_SECS
+    with _rate_lock:
+        bucket = _rate_buckets[key]
+        while bucket and bucket[0] < cutoff:
+            bucket.popleft()
         bucket.append(now)
-        return True, 0
 
 
 # ---------- budget ----------
