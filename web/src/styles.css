@@ -10,3 +10,162 @@ body,
 #root {
   height: 100%;
 }
+
+body {
+  background: #06010f;
+  margin: 0;
+}
+
+/* Nostromo / MU-TH-R terminal console — vintage Alien (1979) CRT feel */
+.console-panel {
+  background: rgba(0, 10, 5, 0.78);
+  border: 1px solid rgba(95, 255, 138, 0.35);
+  color: #5fff8a;
+  font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 1.5px rgba(95, 255, 138, 0.55), 0 0 6px rgba(0, 200, 80, 0.18);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.5),
+    0 0 24px rgba(0, 255, 100, 0.07) inset,
+    0 8px 40px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+
+.console-scanlines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 2px,
+    rgba(95, 255, 138, 0.045) 2px,
+    rgba(95, 255, 138, 0.045) 3px
+  );
+  mix-blend-mode: screen;
+}
+
+.console-header {
+  position: relative;
+  z-index: 1;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid rgba(95, 255, 138, 0.22);
+  background: linear-gradient(to bottom, rgba(95, 255, 138, 0.04), transparent);
+}
+
+.console-header-title {
+  font-size: 10.5px;
+  letter-spacing: 3px;
+  opacity: 0.9;
+}
+
+.console-header-sub {
+  font-size: 9.5px;
+  letter-spacing: 2px;
+  opacity: 0.55;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.console-led {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: #5fff8a;
+  border-radius: 50%;
+  box-shadow: 0 0 6px rgba(95, 255, 138, 0.9), 0 0 10px rgba(95, 255, 138, 0.4);
+  animation: console-led-pulse 2s ease-in-out infinite;
+}
+
+@keyframes console-led-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+.console-log {
+  position: relative;
+  z-index: 1;
+}
+
+.console-line {
+  margin-bottom: 10px;
+}
+
+.console-resp {
+  display: inline;
+}
+
+.console-dim {
+  opacity: 0.55;
+}
+
+.console-err {
+  color: #ff5a5a;
+  text-shadow: 0 0 1.5px rgba(255, 90, 90, 0.55);
+  opacity: 0.9;
+}
+
+.console-input-row {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  border-top: 1px solid rgba(95, 255, 138, 0.22);
+  background: linear-gradient(to top, rgba(95, 255, 138, 0.03), transparent);
+}
+
+.console-prompt {
+  opacity: 0.8;
+  padding-top: 2px;
+}
+
+.console-input {
+  flex: 1;
+  resize: none;
+  background: transparent;
+  border: 0;
+  outline: none;
+  color: #5fff8a;
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  text-shadow: inherit;
+  caret-color: #5fff8a;
+  padding: 2px 0;
+  min-height: 18px;
+  max-height: 120px;
+}
+
+.console-input::placeholder {
+  color: #3a8c5a;
+  opacity: 0.7;
+  letter-spacing: 2px;
+}
+
+.console-input:disabled {
+  opacity: 0.5;
+}
+
+.console-blink {
+  animation: console-blink 1.05s steps(1, end) infinite;
+}
+
+@keyframes console-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+/* Scrollbar — keep it phosphor-themed */
+.console-log::-webkit-scrollbar { width: 6px; }
+.console-log::-webkit-scrollbar-thumb {
+  background: rgba(95, 255, 138, 0.25);
+  border-radius: 3px;
+}
+.console-log::-webkit-scrollbar-track { background: transparent; }

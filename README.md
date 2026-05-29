@@ -109,11 +109,22 @@ RAG faithfulness (4.11/5) is lower than no-RAG accuracy (4.90/5) because the LLM
 
 Hosted on AWS (CloudFront + EC2 + S3). URL is on my resume.
 
-The site is a React chat UI built around the trajectory-visualization product:
-ask about a planet's orbit and the bot returns an animated 2D orbit card
-(top view + side view) inline as an answer. Other astronomy questions
-hit the tiered RAG pipeline; generated answers carry a "not yet verified"
-disclaimer and are auto-staged for admin review before joining the corpus.
+The site opens onto a top-down map of the **Milky Way galaxy** — a barred-spiral
+view using the published Reid et al. (2019) arm parameters, the GRAVITY (2019)
+solar distance R₀ = 8.18 kpc, Sgr A\* at the galactic center, real dust lanes,
+HII emission regions, and an exponential disk density. The whole pattern rotates
+slowly to suggest the density-wave model. Our Sun pulses on the Local Arm — it
+is the only currently interactive star system; eventually it will zoom into a
+solar-system view, with more star systems added to the map over time as
+candidate destinations for human migration.
+
+The chatbot runs as a docked **Nostromo-style terminal console** (`ASTROBOT //
+MU-TH-R TERMINAL`) on the right side of the screen — phosphor green on
+translucent black with scanlines. It is wired to the same `/api/chat` endpoint
+as before: tiered RAG over the curated NASA corpus, planet trajectory questions
+short-circuit to the analytical Kepler module and render animated SVG orbit
+cards inline, and generated answers carry a "not yet verified" disclaimer and
+auto-stage for admin review before joining the verified corpus.
 
 ## Project Structure
 
@@ -133,16 +144,20 @@ disclaimer and are auto-staged for admin review before joining the corpus.
 ├── web/                         # React frontend (Vite build → S3 + CloudFront)
 │   ├── package.json
 │   ├── vite.config.ts           # /api dev proxy + tailwind plugin
-│   ├── index.html
-│   ├── public/robot.png         # Assistant avatar
+│   ├── index.html               # Inline SVG sun favicon, lowercase title
+│   ├── public/robot.png         # Legacy assistant avatar (unused after UI revamp)
 │   └── src/
 │       ├── main.tsx             # React entry
-│       ├── App.tsx              # Auth gate + chat shell
+│       ├── App.tsx              # Mounts GalaxyView + ConsoleChat together
 │       ├── api.ts               # Typed /api client
 │       ├── types.ts             # ChatResponse, Trajectory, OrbitalElements
 │       ├── kepler.ts            # Analytical solver + ellipse path emitter
+│       ├── styles.css           # Tailwind + console terminal CSS
 │       ├── components/
-│       │   ├── Chat.tsx
+│       │   ├── GalaxyView.tsx   # Top-down Milky Way map (Reid 2019 model)
+│       │   ├── SystemView.tsx   # Solar-system view, mounted next on Sun-click
+│       │   ├── ConsoleChat.tsx  # MU-TH-R terminal — phosphor green CRT chat
+│       │   ├── Chat.tsx         # Original chat shell (kept; not currently mounted)
 │       │   ├── Message.tsx      # Text or inline OrbitCard
 │       │   ├── OrbitCard.tsx    # Top + side view answer strip
 │       │   ├── TopView.tsx      # Animated SVG ellipse
@@ -165,7 +180,7 @@ disclaimer and are auto-staged for admin review before joining the corpus.
 │   └── run_evals.py             # Evaluation harness
 │
 ├── data/
-│   ├── astronomy_corpus.yml     # 323 Q&A pairs from NASA + Cool Cosmos
+│   ├── astronomy_corpus.yml     # 340 Q&A pairs from NASA + Cool Cosmos + map-explainer entries
 │   ├── orbital_elements.yml     # J2000 Keplerian elements for 8 planets
 │   ├── pending_corpus.yml       # Admin-review queue (gitignored)
 │   ├── intent_training.csv
@@ -279,7 +294,9 @@ changes from local to prod, see `scripts/push-corpus.sh` (planned).
 
 **Web frontend**
 - React 19 + TypeScript + Vite + Tailwind 4 single-page app
-- Chat UI with centered welcome state, suggestion chips, and inline trajectory cards
+- **Milky Way galaxy map landing** — top-down view using the Reid et al. 2019 spiral arm model (2 major + 2 minor arms + Local Arm), GRAVITY 2019 solar distance, exponential disk density (Gamma(2, 3.5 kpc)) for inter-arm fill, clumpy cluster-based star formation with HII emission halos, dust lanes on the leading edge of each arm, central bar bulge, Sgr A\* anchor, slow density-wave pattern rotation
+- **MU-TH-R Terminal chat console** — vintage Alien-style CRT panel on the right (phosphor green, scanlines, blinking caret, monospace prompt), wired to the same `/api/chat` pipeline as the legacy Chat component
+- Planet trajectory questions render animated SVG orbit cards (top + side view) inline as bot responses
 - Lightweight dev server (`api/dev_server.py`) — exercises the full UI flow without torch/Chroma/transformers, useful for fast iteration
 
 **Production deployment**
@@ -288,6 +305,7 @@ changes from local to prod, see `scripts/push-corpus.sh` (planned).
 - Persistent vector store — dedicated EBS gp3 volume for ChromaDB + corpus YAML, separate from EC2 root, survives instance replacement
 
 ### To do
+- [ ] **Galaxy → System → Planet zoom flow** — clicking the pulsing Sun on the galaxy map transitions to `SystemView` (solar system top-down with clickable planets), then to a per-planet view with the existing orbit card; bot auto-narrates from RAG on each transition (tour-guide mode); eventually add other star systems to the galaxy map as candidate destinations
 - [ ] **CI/CD via GitHub Actions + OIDC** — keyless deploys, auto-eval on push
 - [ ] **Improve eval framework** — semantic-match fallback shipped (35% → 75% hit rate); next: hybrid BM25 + dense retrieval, eval-set audit, expand test set beyond 20 queries
 - [ ] **Improve intent classifier** — more training data, add a `request_trajectory` intent, expand math keyword shortcuts
