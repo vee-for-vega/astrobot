@@ -1,5 +1,11 @@
-import Chat from "./components/Chat";
+import GalaxyView from "./components/GalaxyView";
+import ConsoleChat from "./components/ConsoleChat";
 
 export default function App() {
-  return <Chat />;
+  return (
+    <>
+      <GalaxyView />
+      <ConsoleChat />
+    </>
+  );
 }
