@@ -67,28 +67,6 @@ resource "aws_ssm_parameter" "anthropic_api_key" {
   }
 }
 
-resource "aws_ssm_parameter" "auth_password" {
-  name        = "/${var.project_name}/auth_password"
-  type        = "SecureString"
-  value       = "REPLACE_ME"
-  description = "Shared password gating the demo. Set out-of-band."
-
-  lifecycle {
-    ignore_changes = [value]
-  }
-}
-
-resource "aws_ssm_parameter" "jwt_signing_key" {
-  name        = "/${var.project_name}/jwt_signing_key"
-  type        = "SecureString"
-  value       = "REPLACE_ME"
-  description = "HMAC key used to sign JWTs. Set out-of-band."
-
-  lifecycle {
-    ignore_changes = [value]
-  }
-}
-
 resource "aws_instance" "bot" {
   ami                    = data.aws_ami.al2023.id
   instance_type          = var.instance_type
@@ -97,11 +75,9 @@ resource "aws_instance" "bot" {
   iam_instance_profile   = var.instance_profile_name
 
   user_data = templatefile("${path.module}/user_data.sh.tftpl", {
-    region                  = data.aws_region.current.name
-    ecr_url                 = var.ecr_repository_url
-    api_key_param_name      = aws_ssm_parameter.anthropic_api_key.name
-    auth_password_param     = aws_ssm_parameter.auth_password.name
-    jwt_signing_key_param   = aws_ssm_parameter.jwt_signing_key.name
+    region             = data.aws_region.current.name
+    ecr_url            = var.ecr_repository_url
+    api_key_param_name = aws_ssm_parameter.anthropic_api_key.name
   })
 
   # Re-run user_data if the script content changes. Without this, edits to

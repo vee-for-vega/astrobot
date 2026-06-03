@@ -32,17 +32,5 @@ output "secret_parameter_arns" {
   description = "All SecureString param ARNs the EC2 role needs read access to."
   value = [
     aws_ssm_parameter.anthropic_api_key.arn,
-    aws_ssm_parameter.auth_password.arn,
-    aws_ssm_parameter.jwt_signing_key.arn,
   ]
-}
-
-output "auth_password_parameter_name" {
-  description = "Name of the auth-password param. For `aws ssm put-parameter --name <this>`."
-  value       = aws_ssm_parameter.auth_password.name
-}
-
-output "jwt_signing_key_parameter_name" {
-  description = "Name of the JWT signing key param. For `aws ssm put-parameter --name <this>`."
-  value       = aws_ssm_parameter.jwt_signing_key.name
 }
