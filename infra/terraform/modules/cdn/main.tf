@@ -80,8 +80,8 @@ resource "aws_cloudfront_distribution" "main" {
 # read from the site bucket via OAC.
 data "aws_iam_policy_document" "site_bucket" {
   statement {
-    sid     = "AllowCloudFrontRead"
-    actions = ["s3:GetObject"]
+    sid       = "AllowCloudFrontRead"
+    actions   = ["s3:GetObject"]
     resources = ["${var.site_bucket_arn}/*"]
 
     principals {
