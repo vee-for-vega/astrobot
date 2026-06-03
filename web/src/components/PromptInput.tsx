@@ -10,7 +10,7 @@ type Props = {
 export default function PromptInput({
   onSubmit,
   disabled = false,
-  placeholder = "Ask me about a planet's trajectory…",
+  placeholder = "Type your question",
   autoFocus = true,
 }: Props) {
   const [value, setValue] = useState("");

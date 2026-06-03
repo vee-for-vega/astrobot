@@ -14,6 +14,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /build
 COPY requirements.txt .
+# Install CPU-only PyTorch first so requirements.txt's torch pin resolves
+# against the CPU wheel index. This avoids pulling ~2 GB of nvidia/CUDA
+# libraries into the image — the EC2 t3.small has no GPU.
+RUN pip install --user --no-cache-dir \
+    --index-url https://download.pytorch.org/whl/cpu \
+    --extra-index-url https://pypi.org/simple \
+    torch
 RUN pip install --user --no-cache-dir -r requirements.txt
 
 # Pre-download HF models so the first request isn't a 30s model load.

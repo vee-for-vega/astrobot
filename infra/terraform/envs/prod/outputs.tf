@@ -38,16 +38,6 @@ output "api_key_parameter_name" {
   value       = module.compute.api_key_parameter_name
 }
 
-output "auth_password_parameter_name" {
-  description = "Set the demo password with: aws ssm put-parameter --name <this> --value '<password>' --type SecureString --overwrite"
-  value       = module.compute.auth_password_parameter_name
-}
-
-output "jwt_signing_key_parameter_name" {
-  description = "Set the JWT signing key (any random string >32 chars). aws ssm put-parameter --name <this> --value '<random>' --type SecureString --overwrite"
-  value       = module.compute.jwt_signing_key_parameter_name
-}
-
 output "site_url" {
   description = "Public URL of the site. CloudFront *.cloudfront.net hostname over HTTPS."
   value       = "https://${module.cdn.distribution_domain_name}"

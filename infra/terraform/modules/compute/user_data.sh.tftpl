@@ -51,26 +51,21 @@ aws ecr get-login-password --region ${region} | \
 
 docker pull ${ecr_url}:latest
 
-# Seed $DATA_MOUNT from the image on first run. Idempotent: only fires when
-# chroma_db is missing, so existing data is never overwritten.
-if [ ! -d $DATA_MOUNT/chroma_db ]; then
-  echo "seeding $DATA_MOUNT from image..."
-  docker create --name astrobot-seed ${ecr_url}:latest > /dev/null
-  docker cp astrobot-seed:/app/data/. $DATA_MOUNT/
-  docker rm astrobot-seed > /dev/null
-  chown -R 1000:1000 $DATA_MOUNT
-fi
+# Sync baked data files from the image on every start. The image is the
+# source of truth for read-only data (chroma_db, orbital_elements.yml, etc).
+# docker cp overwrites those with the image's versions, so new data files
+# added in later builds always land. Runtime-written files NOT shipped in the
+# image (e.g. pending_corpus.yml) are left untouched, since docker cp only
+# copies what the image actually contains.
+echo "syncing data from image to $DATA_MOUNT..."
+docker rm -f astrobot-seed 2>/dev/null || true
+docker create --name astrobot-seed ${ecr_url}:latest > /dev/null
+docker cp astrobot-seed:/app/data/. $DATA_MOUNT/
+docker rm astrobot-seed > /dev/null
+chown -R 1000:1000 $DATA_MOUNT
 
 API_KEY=\$(aws ssm get-parameter --region ${region} \
   --name ${api_key_param_name} --with-decryption \
-  --query 'Parameter.Value' --output text)
-
-AUTH_PW=\$(aws ssm get-parameter --region ${region} \
-  --name ${auth_password_param} --with-decryption \
-  --query 'Parameter.Value' --output text)
-
-JWT_KEY=\$(aws ssm get-parameter --region ${region} \
-  --name ${jwt_signing_key_param} --with-decryption \
   --query 'Parameter.Value' --output text)
 
 docker rm -f astrobot 2>/dev/null || true
@@ -79,8 +74,6 @@ exec docker run --rm --name astrobot \
   -p 80:8000 \
   -v $DATA_MOUNT:/app/data \
   -e ANTHROPIC_API_KEY="\$API_KEY" \
-  -e AUTH_PASSWORD="\$AUTH_PW" \
-  -e JWT_SIGNING_KEY="\$JWT_KEY" \
   ${ecr_url}:latest
 EOF
 chmod +x /usr/local/bin/run-astrobot.sh

@@ -11,8 +11,10 @@ logs/
 .vscode/
 .idea/
 *.tar
+*.tsbuildinfo
 
 # web build artifacts
 web/node_modules/
 web/dist/
 web/.vite/
+
