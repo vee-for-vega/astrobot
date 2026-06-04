@@ -318,7 +318,7 @@ function generateBarBulge(rand: () => number, barCount: number, coreCount: numbe
   return dots;
 }
 
-export default function GalaxyView() {
+export default function GalaxyView({ onEnterSystem }: { onEnterSystem: () => void }) {
   // Track the actual pixel scale of the SVG so the kpc bar resizes with the window.
   // viewBox is 1000×1000 with slice → scale = max(rendered width, rendered height) / 1000.
   const svgRef = useRef<SVGSVGElement>(null);
@@ -500,10 +500,13 @@ export default function GalaxyView() {
             <circle cx={0} cy={0} r={1.6} fill="#ffffff" />
             <circle cx={0} cy={0} r={3} fill="none" stroke="#ffffff" strokeOpacity={0.5} strokeWidth={0.3} />
             <text
-              x={6}
-              y={-5}
+              x={9}
+              y={-9}
               fill="#ffffff"
-              fillOpacity={0.75}
+              stroke="#04010c"
+              strokeWidth={1.6}
+              paintOrder="stroke"
+              strokeLinejoin="round"
               fontSize={7.5}
               fontFamily="ui-monospace, monospace"
               letterSpacing="1.5"
@@ -529,26 +532,44 @@ export default function GalaxyView() {
             </text>
           ))}
 
-          {/* Sun marker — orbits with the disk, pulses to draw the eye */}
-          <circle cx={sun.x} cy={sun.y} r={6} fill="url(#sun-corona)">
-            <animate attributeName="r" values="5;9;5" dur="4.5s" repeatCount="indefinite" />
-            <animate attributeName="opacity" values="0.6;1;0.6" dur="4.5s" repeatCount="indefinite" />
-          </circle>
-          <circle cx={sun.x} cy={sun.y} r={1.4} fill="url(#sun-disc)" />
-          <text
-            x={sun.x + 8}
-            y={sun.y + 3}
-            fill="#ffeaa8"
-            fillOpacity={0.9}
-            fontSize={8.5}
-            fontFamily="ui-monospace, monospace"
-            letterSpacing="2"
+          {/* Sun marker — orbits with the disk, pulses to draw the eye.
+              Clickable: zooms into the solar-system orrery. */}
+          <g
+            style={{ cursor: "pointer" }}
+            onClick={onEnterSystem}
+            role="button"
+            aria-label="Enter the solar system"
           >
-            SOL
-          </text>
+            {/* invisible larger hit-target so the tiny marker is easy to click */}
+            <circle cx={sun.x} cy={sun.y} r={16} fill="transparent" />
+            <circle cx={sun.x} cy={sun.y} r={6} fill="url(#sun-corona)">
+              <animate attributeName="r" values="5;9;5" dur="4.5s" repeatCount="indefinite" />
+              <animate attributeName="opacity" values="0.6;1;0.6" dur="4.5s" repeatCount="indefinite" />
+            </circle>
+            <circle cx={sun.x} cy={sun.y} r={1.4} fill="url(#sun-disc)" />
+            <text
+              x={sun.x + 8}
+              y={sun.y + 3}
+              fill="#ffeaa8"
+              fillOpacity={0.9}
+              fontSize={8.5}
+              fontFamily="ui-monospace, monospace"
+              letterSpacing="2"
+            >
+              SOL
+            </text>
+          </g>
         </g>
 
         </svg>
+
+        {/* Bottom hint — click the Sun to enter the solar-system orrery. */}
+        <div
+          className="pointer-events-none absolute bottom-5 left-1/2 -translate-x-1/2 font-mono text-[11px]"
+          style={{ color: "#ffe9a8", letterSpacing: "2px" }}
+        >
+          CLICK SOL TO ENTER THE SOLAR SYSTEM
+        </div>
 
         {/* Scale bar overlay — HTML so it never gets clipped by the SVG slice aspect ratio.
             Bar pixel length tracks the actual rendered scale via ResizeObserver. */}

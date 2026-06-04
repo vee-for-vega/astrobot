@@ -9,6 +9,11 @@ export type OrbitalElements = {
   i: number;
   period?: number;
   M0?: number;
+  // Standish J2000 elements for placing planets in a common frame (real
+  // positions). L0 = mean longitude at J2000 (deg); peri = longitude of
+  // perihelion (deg). Optional: only the orrery uses them.
+  L0?: number;
+  peri?: number;
 };
 
 export type Trajectory = {
@@ -51,7 +56,22 @@ export type StatsResponse = {
   rate_limit: { requests_per_window: number; window_secs: number };
 };
 
+export type Planet = {
+  name: string;
+  elements: OrbitalElements;
+  radiusKm: number;
+  // Axial tilt / obliquity in degrees. > 90 means retrograde rotation
+  // (Venus ~177, Uranus ~98 — rotates on its side).
+  tiltDeg: number;
+};
+
 export type PlanetarySystem = {
   star: Star;
-  planets: { name: string; elements: OrbitalElements }[];
+  planets: Planet[];
 };
+
+// Landing-page navigation state: galaxy map -> solar-system orrery -> single planet.
+export type View =
+  | { level: "galaxy" }
+  | { level: "system" }
+  | { level: "planet"; planet: string };

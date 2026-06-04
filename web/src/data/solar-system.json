@@ -1,13 +1,13 @@
 {
   "star": { "name": "Sun", "mass": 1.0 },
   "planets": [
-    { "name": "Mercury", "elements": { "a": 0.387, "e": 0.2056, "i": 7.00,  "period": 87.97,    "M0": 174.796 } },
-    { "name": "Venus",   "elements": { "a": 0.723, "e": 0.0068, "i": 3.39,  "period": 224.70,   "M0": 50.115  } },
-    { "name": "Earth",   "elements": { "a": 1.000, "e": 0.0167, "i": 0.00,  "period": 365.25,   "M0": 357.529 } },
-    { "name": "Mars",    "elements": { "a": 1.524, "e": 0.0934, "i": 1.85,  "period": 686.97,   "M0": 19.373  } },
-    { "name": "Jupiter", "elements": { "a": 5.203, "e": 0.0484, "i": 1.30,  "period": 4332.59,  "M0": 20.020  } },
-    { "name": "Saturn",  "elements": { "a": 9.537, "e": 0.0541, "i": 2.49,  "period": 10759.22, "M0": 317.020 } },
-    { "name": "Uranus",  "elements": { "a": 19.19, "e": 0.0472, "i": 0.77,  "period": 30688.50, "M0": 142.238 } },
-    { "name": "Neptune", "elements": { "a": 30.07, "e": 0.0086, "i": 1.77,  "period": 60182.00, "M0": 256.228 } }
+    { "name": "Mercury", "radiusKm": 2440,  "tiltDeg": 0.03,   "elements": { "a": 0.387, "e": 0.2056, "i": 7.00,  "period": 87.97,    "M0": 174.796, "L0": 252.25032, "peri": 77.45780  } },
+    { "name": "Venus",   "radiusKm": 6052,  "tiltDeg": 177.40, "elements": { "a": 0.723, "e": 0.0068, "i": 3.39,  "period": 224.70,   "M0": 50.115,  "L0": 181.97910, "peri": 131.60247 } },
+    { "name": "Earth",   "radiusKm": 6371,  "tiltDeg": 23.44,  "elements": { "a": 1.000, "e": 0.0167, "i": 0.00,  "period": 365.25,   "M0": 357.529, "L0": 100.46457, "peri": 102.93768 } },
+    { "name": "Mars",    "radiusKm": 3390,  "tiltDeg": 25.19,  "elements": { "a": 1.524, "e": 0.0934, "i": 1.85,  "period": 686.97,   "M0": 19.373,  "L0": 355.44657, "peri": 336.05637 } },
+    { "name": "Jupiter", "radiusKm": 69911, "tiltDeg": 3.13,   "elements": { "a": 5.203, "e": 0.0484, "i": 1.30,  "period": 4332.59,  "M0": 20.020,  "L0": 34.39644,  "peri": 14.72848  } },
+    { "name": "Saturn",  "radiusKm": 58232, "tiltDeg": 26.73,  "elements": { "a": 9.537, "e": 0.0541, "i": 2.49,  "period": 10759.22, "M0": 317.020, "L0": 49.95424,  "peri": 92.59888  } },
+    { "name": "Uranus",  "radiusKm": 25362, "tiltDeg": 97.77,  "elements": { "a": 19.19, "e": 0.0472, "i": 0.77,  "period": 30688.50, "M0": 142.238, "L0": 313.23810, "peri": 170.95428 } },
+    { "name": "Neptune", "radiusKm": 24622, "tiltDeg": 28.32,  "elements": { "a": 30.07, "e": 0.0086, "i": 1.77,  "period": 60182.00, "M0": 256.228, "L0": 304.87997, "peri": 44.96476  } }
   ]
 }
