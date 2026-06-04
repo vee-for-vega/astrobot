@@ -153,6 +153,25 @@ body {
   opacity: 0.5;
 }
 
+.console-chip {
+  font-family: inherit;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  color: #5fff8a;
+  background: rgba(95, 255, 138, 0.04);
+  border: 1px solid rgba(95, 255, 138, 0.28);
+  border-radius: 3px;
+  padding: 3px 7px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  text-shadow: inherit;
+}
+
+.console-chip:hover {
+  background: rgba(95, 255, 138, 0.12);
+  border-color: rgba(95, 255, 138, 0.6);
+}
+
 .console-blink {
   animation: console-blink 1.05s steps(1, end) infinite;
 }
