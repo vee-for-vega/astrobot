@@ -45,7 +45,8 @@ ENV PATH=/home/app/.local/bin:$PATH
 
 WORKDIR /app
 
-# Copy app code and the prebuilt vector store + DistilBERT model.
+# Copy app code, corpus/data, and the DistilBERT model. The Chroma vector
+# store is regenerated from the corpus below, not trusted from the repo.
 COPY --chown=app:app api/ ./api/
 COPY --chown=app:app src/ ./src/
 COPY --chown=app:app data/ ./data/
@@ -56,6 +57,13 @@ COPY --chown=app:app models/ ./models/
 RUN mkdir -p /app/logs && chown -R app:app /app/logs
 
 USER app
+
+# Rebuild the Chroma vector store from the corpus at build time so the baked
+# index always matches data/astronomy_corpus.yml. Updating Q&As is now just:
+# edit the YAML, rebuild the image, redeploy — no stale vectors, and no need
+# to run the heavy embedding deps on a dev machine. The script deletes and
+# recreates the collection, so it's a clean rebuild (no duplicate chunks).
+RUN python src/build_vector_store.py
 
 EXPOSE 8000
 
