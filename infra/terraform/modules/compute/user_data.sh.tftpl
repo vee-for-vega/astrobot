@@ -49,6 +49,12 @@ set -euo pipefail
 aws ecr get-login-password --region ${region} | \
   docker login --username AWS --password-stdin $ECR_REGISTRY
 
+# Reclaim disk before pulling. Each deploy ships a multi-GB image (BERT model
+# + Chroma DB baked in); without this, old layers accumulate and eventually
+# fill the root volume, causing "no space left on device" pull failures and a
+# crash loop. prune skips images in use by a running container, so it's safe.
+docker image prune -af
+
 docker pull ${ecr_url}:latest
 
 # Sync baked data files from the image on every start. The image is the
