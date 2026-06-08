@@ -366,6 +366,14 @@ export default function OrreryView({ view, onSelectPlanet, onBack }: Props) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // Don't hijack keys while the user is typing in the chat box.
+      const el = e.target as HTMLElement | null;
+      if (
+        el &&
+        (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)
+      ) {
+        return;
+      }
       if (e.key === "Escape") onBack();
       if (e.key === " ") {
         e.preventDefault();
