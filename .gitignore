@@ -2,6 +2,9 @@
 .env
 __pycache__/
 *.pyc
+.venv/
+.pytest_cache/
+.claude/settings.local.json
 data/chroma_db/
 data/refresh_tracker.json
 data/pending_corpus.yml

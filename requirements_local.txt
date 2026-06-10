@@ -1,0 +1,38 @@
+# Local-only requirements for Intel macOS development.
+#
+# PyTorch dropped x86 macOS wheels starting at 2.3, so torch is pinned to 2.2.
+# That cascades into pins for numpy (<2), transformers (<4.47, last to
+# support torch 2.2), and sentence-transformers (<3) — they all require an
+# older compatible stack than the prod Linux/EC2 wheels.
+#
+# Production (Linux EC2) uses requirements.txt with the modern stack.
+#
+# Install: pip install --upgrade pip && pip install -r requirements_local.txt
+
+anthropic>=0.39.0
+
+# --- Intel-mac pinned stack ---
+torch>=2.2,<2.3
+transformers>=4.40,<4.47
+sentence-transformers>=2.7,<3
+accelerate>=0.26,<1
+numpy>=1.24,<2
+# --- end pinned stack ---
+
+sympy>=1.12
+
+requests>=2.28.0
+beautifulsoup4>=4.12.0
+pyyaml>=6.0
+pandas>=2.0.0,<2.3
+datasets>=2.14.0,<3
+scikit-learn>=1.3.0
+
+chromadb>=0.4.0,<0.6
+
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
+PyJWT>=2.8.0
+
+# --- dev / test ---
+pytest>=8
