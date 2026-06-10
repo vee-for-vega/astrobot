@@ -8,6 +8,13 @@ AstroBot — production-style RAG astronomy chatbot. Python/FastAPI backend, Rea
 - **Verify before claiming done.** There is no test suite yet (see Verification). Run the relevant command and observe real output before saying a change works.
 - **Match the existing commit style:** conventional commits with scope — `feat(web):`, `fix(api):`, `chore:`.
 
+## Usage and cost discipline
+
+Two separate budgets — never conflate them:
+
+- **Claude Code plan usage** (the architect's subscription). Parallel sessions, agent teams, and subagents multiply burn. Defaults: one session per task; at most ONE parallel pair (two worktree sessions) at a time; no subagents or agent teams unless the architect asks. The architect checks `/usage` before kicking off parallel work and after finishing it.
+- **AstroBot's own Anthropic API key** (the product's spend). Prod chat is hard-capped by `DAILY_BUDGET_USD` in `api/limits.py`. The eval harness BYPASSES that cap (it constructs its own client) — only the faithfulness eval spends tokens (roughly tens of cents per run on Sonnet); run it deliberately and never in CI, loops, or hooks.
+
 ## Repo layout
 
 - `api/` — FastAPI server (deployed to EC2 via Docker). Endpoints, tiered pipeline wrapper, save guard, pending queue, rate limits.
