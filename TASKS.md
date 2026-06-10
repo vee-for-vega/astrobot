@@ -29,19 +29,26 @@ satisfy it.
 3. [A] Hook gate: `.claude/settings.json` + `test-gate.sh` (exit 2 blocks)
        + `lock-guard.sh` — STATUS: done, verified blocking on a planted red
 
-## Stage 1 — Chatbot fix (NEXT)
+## Stage 1 — Chatbot fix: narration dedupe (done 2026-06-10, review open)
 
-4. [H] Describe the chatbot bug and define "done" (acceptance criteria)
-       - STATUS: OPEN — architect fills this in to start the stage
-       - template: symptom, expected behavior, 3-5 concrete input/output
-         examples that must hold afterward
-5. [A/M] Write locked tests encoding those criteria
-       - depends on: task 4
-6. [H] Lock the tests (freeze acceptance criteria)
-       - depends on: task 5
-7. [A/M] Implement the fix to pass the locked tests
-       - depends on: task 6  <-- cannot start before tests exist
-8. [R] Review the fix
+4. [H] Describe the bug and define "done" — STATUS: done
+       - Bug: re-entering an already-toured view (e.g. planet -> back to
+         system) re-narrated the same intro via a fresh API call.
+       - Criteria (architect-approved): first visit narrates via API;
+         revisits print a short local "re-entering" line at zero token
+         cost; planets tracked individually; galaxy never narrates;
+         same-view re-fires say nothing; a narration skipped mid-exchange
+         is not marked toured; ledger is in-memory so it resets with the
+         chat log on reload (the two must never disagree).
+5. [W] Locked tests encoding the criteria — STATUS: done
+       (web/src/narration.test.ts, 9 tests; vitest pulled forward from
+       task 13 to support this)
+6. [H] Lock the tests — STATUS: done (LOCKED header, lock-guard covers
+       // LOCKED and *.test.* paths now)
+7. [W] Implement — STATUS: done (web/src/narration.ts pure planner +
+       ConsoleChat ledger wiring; planner test-pinned, wiring typechecked;
+       browser click-through still worth doing at review)
+8. [R] Review the fix — STATUS: OPEN — architect reviews the pushed diff
 
 ## Stage 2 — Roadmap pool (seed from README "To do"; same 5-step shape each)
 
@@ -52,5 +59,10 @@ satisfy it.
 11. Hybrid BM25 + dense retrieval; eval-set audit; grow eval set past 20
 12. Adversarial eval suite — prompt-injection cases against `/api/chat` and
     the save guard
-13. vitest for `web/` — `kepler.ts` solver, typed `api.ts` client
+13. vitest for `web/` — scaffolding DONE via Stage 1 (`npm test`, gate
+    runs it); still pooled: `kepler.ts` solver, typed `api.ts` client
 14. Layered durability — S3 versioned backup of EBS corpus on every save
+15. Session persistence across reloads — store chat log + narration
+    ledger together (localStorage); they must persist or reset as one
+16. Per-user long-term memory — server-side, requires identity/auth
+    first (prod API has none today); architect decision on scope

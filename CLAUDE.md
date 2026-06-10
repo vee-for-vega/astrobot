@@ -34,7 +34,7 @@ All Python commands run **from the repo root** (the `api` package imports `src/`
 
 **Frontend** (from `web/`)
 - `npm install` then `npm run dev` — Vite dev server (default `:5173`), proxies `/api` to `:8000`.
-- `npm run build` (runs `tsc -b && vite build`), `npm run typecheck`.
+- `npm run build` (runs `tsc -b && vite build`), `npm run typecheck`, `npm test` (vitest).
 
 **Local loop:** start an API on `:8000` (`dev_server` for UI-only, `api_server` for full RAG) + `npm run dev`; the browser hits Vite, which proxies `/api` to the backend.
 
@@ -42,10 +42,10 @@ All Python commands run **from the repo root** (the `api` package imports `src/`
 
 ## Verification (read this)
 
-- **Run the tests:** `.venv/bin/python -m pytest -q tests/` from the repo root. Locked suites cover the save guard, the trajectory fast path, and tier routing (LLM faked — tests never touch the network or load torch/Chroma).
-- **Test discipline:** files headed `# LOCKED` are frozen acceptance criteria. Never edit one to make an implementation pass — a criteria change is a new architect-approved task (see `TASKS.md`). The `TaskCompleted` hook (`.claude/hooks/test-gate.sh`) runs the suite and blocks task completion while it is red; `lock-guard.sh` warns on any edit to a locked file.
+- **Run the tests:** `.venv/bin/python -m pytest -q tests/` from the repo root (save guard, trajectory fast path, tier routing — LLM faked, no torch/Chroma/network) and `npm test` from `web/` (vitest; narration planner so far).
+- **Test discipline:** files headed `# LOCKED` (py) or `// LOCKED` (ts) are frozen acceptance criteria. Never edit one to make an implementation pass — a criteria change is a new architect-approved task (see `TASKS.md`). The `TaskCompleted` hook (`.claude/hooks/test-gate.sh`) runs both suites (web only where `web/node_modules` exists) and blocks task completion while red; `lock-guard.sh` warns on any edit to a locked file.
 - The eval harness (`src/run_evals.py`) is a separate quality gate (retrieval / intent / faithfulness scores) — it is not a substitute for the unit tests, nor vice versa.
-- **No web tests yet** (vitest is pooled in `TASKS.md`): verify UI changes with `npm run dev` and look. For API changes beyond unit coverage, `curl` against `/api/chat`. Never assert a change works without running something.
+- Component/UI behavior beyond the pure planners is still uncovered: verify with `npm run dev` and look. For API changes beyond unit coverage, `curl` against `/api/chat`. Never assert a change works without running something.
 
 ## Canonical patterns (the invariants)
 

@@ -14,12 +14,24 @@ if [ -x .venv/bin/python ]; then
   PYTEST=".venv/bin/python -m pytest"
 fi
 
-if $PYTEST -q tests/ > /tmp/astrobot_pytest_out.txt 2>&1; then
-  exit 0
-else
-  echo "Task blocked: locked tests are failing. Fix the implementation to" >&2
-  echo "satisfy the existing tests. Do NOT edit the tests to pass." >&2
+if ! $PYTEST -q tests/ > /tmp/astrobot_pytest_out.txt 2>&1; then
+  echo "Task blocked: locked Python tests are failing. Fix the implementation" >&2
+  echo "to satisfy the existing tests. Do NOT edit the tests to pass." >&2
   echo "" >&2
   tail -n 20 /tmp/astrobot_pytest_out.txt >&2
   exit 2
 fi
+
+# Web suite (vitest). Runs only where the web env is installed so a
+# backend-only machine is not blocked on node_modules.
+if [ -d web/node_modules ] && grep -q '"test"' web/package.json 2>/dev/null; then
+  if ! (cd web && npm test --silent) > /tmp/astrobot_vitest_out.txt 2>&1; then
+    echo "Task blocked: locked web tests (vitest) are failing. Fix the" >&2
+    echo "implementation to satisfy the existing tests. Do NOT edit them." >&2
+    echo "" >&2
+    tail -n 20 /tmp/astrobot_vitest_out.txt >&2
+    exit 2
+  fi
+fi
+
+exit 0
