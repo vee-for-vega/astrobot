@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChatTurn, View } from "../types";
 import { chat, HttpError } from "../api";
+import { planNarration, viewKey } from "../narration";
 
 // Suggestion prompts shown for the current view. They feed the normal chat
 // pipeline (corpus -> RAG -> Claude), so answers auto-stage for review.
@@ -39,7 +40,10 @@ export default function ConsoleChat({ view }: Props) {
   // Typewriter state for narration so the bot visibly "talks" before unlocking.
   const [typing, setTyping] = useState<{ text: string; shown: number } | null>(null);
   const typingMetaRef = useRef<{ question: string; tier?: 1 | 2 | 3 }>({ question: "" });
-  const lastKeyRef = useRef<string>("galaxy");
+  const lastKeyRef = useRef<string | null>("galaxy");
+  // Ledger of views toured this session. In-memory by design: a reload
+  // resets it together with the chat log, so the two never disagree.
+  const narratedRef = useRef<Set<string>>(new Set());
 
   const logRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -99,20 +103,22 @@ export default function ConsoleChat({ view }: Props) {
     }
   }
 
-  // Fire narration on view transitions. Skipped on the galaxy level, on repeat
-  // entries of the same view, and while the user is mid-exchange.
+  // Fire narration on view transitions. First visit tours the view via the
+  // API; revisits get a short local line at zero token cost. Mid-exchange
+  // transitions stay quiet WITHOUT marking the view toured, so it still gets
+  // its first-visit narration on the next entry.
   useEffect(() => {
-    const key = view.level === "planet" ? `planet:${view.planet}` : view.level;
-    if (key === lastKeyRef.current) return;
-    lastKeyRef.current = key;
-
-    if (view.level === "galaxy") return;
+    const plan = planNarration(view, narratedRef.current, lastKeyRef.current);
+    lastKeyRef.current = viewKey(view);
+    if (plan.kind === "none") return;
     if (pending || typing) return;
 
-    if (view.level === "system") {
-      narrate("Give me a brief overview of our solar system.", "Entering the solar system view. ");
+    if (plan.kind === "revisit") {
+      typingMetaRef.current = { question: "" };
+      setTyping({ text: plan.line, shown: 0 });
     } else {
-      narrate(`Describe the orbit of ${view.planet}.`, `Entering ${view.planet}. `);
+      narratedRef.current.add(plan.key);
+      narrate(plan.question, plan.prefix);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view]);
