@@ -23,7 +23,8 @@ AstroBot — production-style RAG astronomy chatbot. Python/FastAPI backend, Rea
 All Python commands run **from the repo root** (the `api` package imports `src/` via a path shim).
 
 **Backend**
-- Install (Intel mac, pinned older stack): `pip install -r requirements_local.txt` — prod/Linux uses `requirements.txt`.
+- Env setup (once): `/usr/local/bin/python3.11 -m venv .venv && .venv/bin/pip install -r requirements_local.txt` — use 3.11: system python3 is 3.9 (cannot import this codebase's `X | None` annotations) and the Intel-mac torch 2.2 pin has no 3.13 wheels. Prod/Linux uses `requirements.txt`.
+- Tests: `.venv/bin/python -m pytest -q tests/`
 - Full API (RAG + models): `uvicorn api.api_server:app --reload --port 8000`
 - Light dev API (trajectory only, no torch/Chroma/RAG — fast UI iteration): `uvicorn api.dev_server:app --reload --port 8000`
 - Evals: `python src/run_evals.py --eval all` (or `retrieval` / `faithfulness` / `intent`)
@@ -41,8 +42,10 @@ All Python commands run **from the repo root** (the `api` package imports `src/`
 
 ## Verification (read this)
 
-- **No unit/integration tests exist** — no pytest, no vitest, anywhere. The only automated check is the eval harness (`src/run_evals.py`), which scores retrieval / intent / faithfulness *quality*, not correctness of the API, save guard, trajectory math, tier routing, or UI.
-- Until a real test layer lands (next planned workstream), verify by running: for API, `curl` against `/api/chat`; for web, `npm run dev` and look; for the pipeline, the eval harness. Never assert a change works without doing this.
+- **Run the tests:** `.venv/bin/python -m pytest -q tests/` from the repo root. Locked suites cover the save guard, the trajectory fast path, and tier routing (LLM faked — tests never touch the network or load torch/Chroma).
+- **Test discipline:** files headed `# LOCKED` are frozen acceptance criteria. Never edit one to make an implementation pass — a criteria change is a new architect-approved task (see `TASKS.md`). The `TaskCompleted` hook (`.claude/hooks/test-gate.sh`) runs the suite and blocks task completion while it is red; `lock-guard.sh` warns on any edit to a locked file.
+- The eval harness (`src/run_evals.py`) is a separate quality gate (retrieval / intent / faithfulness scores) — it is not a substitute for the unit tests, nor vice versa.
+- **No web tests yet** (vitest is pooled in `TASKS.md`): verify UI changes with `npm run dev` and look. For API changes beyond unit coverage, `curl` against `/api/chat`. Never assert a change works without running something.
 
 ## Canonical patterns (the invariants)
 
