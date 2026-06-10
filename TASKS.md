@@ -52,8 +52,13 @@ satisfy it.
 
 ## Stage 2 — Roadmap pool (seed from README "To do"; same 5-step shape each)
 
-9.  CI: GitHub Actions workflow running `pytest -q tests/` on every push
-    (deploy via OIDC later)
+9.  CI: GitHub Actions running both locked suites on every push/PR —
+    STATUS: done 2026-06-10 (.github/workflows/ci.yml; evals excluded
+    by design: torch stack + token spend)
+9b. CD: keyless deploy via GitHub OIDC — IAM role + trust policy in
+    Terraform, then deploy-web.sh (and later deploy-image.sh) on main
+    after CI green. Depends on: task 9 proving stable. Until then,
+    deploys stay manual (aws login + scripts/deploy-web.sh)
 10. Add a `request_trajectory` intent to the DistilBERT classifier so orbit
     questions stop leaking into `define_concept`
 11. Hybrid BM25 + dense retrieval; eval-set audit; grow eval set past 20

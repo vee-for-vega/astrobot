@@ -1,0 +1,7 @@
+# Unit-test dependencies only — what CI installs.
+# The locked suite fakes bot_controller before import, so neither CI nor
+# local test runs ever need torch/Chroma/transformers (see
+# tests/test_tier_routing.py). Full local dev uses requirements_local.txt.
+pytest>=8
+pyyaml>=6
+anthropic>=0.39.0

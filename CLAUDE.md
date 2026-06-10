@@ -44,6 +44,7 @@ All Python commands run **from the repo root** (the `api` package imports `src/`
 
 - **Run the tests:** `.venv/bin/python -m pytest -q tests/` from the repo root (save guard, trajectory fast path, tier routing — LLM faked, no torch/Chroma/network) and `npm test` from `web/` (vitest; narration planner so far).
 - **Test discipline:** files headed `# LOCKED` (py) or `// LOCKED` (ts) are frozen acceptance criteria. Never edit one to make an implementation pass — a criteria change is a new architect-approved task (see `TASKS.md`). The `TaskCompleted` hook (`.claude/hooks/test-gate.sh`) runs both suites (web only where `web/node_modules` exists) and blocks task completion while red; `lock-guard.sh` warns on any edit to a locked file.
+- CI (`.github/workflows/ci.yml`) runs both locked suites plus the web build on every push/PR, installing only `requirements-test.txt` — never the torch stack, never the evals.
 - The eval harness (`src/run_evals.py`) is a separate quality gate (retrieval / intent / faithfulness scores) — it is not a substitute for the unit tests, nor vice versa.
 - Component/UI behavior beyond the pure planners is still uncovered: verify with `npm run dev` and look. For API changes beyond unit coverage, `curl` against `/api/chat`. Never assert a change works without running something.
 
