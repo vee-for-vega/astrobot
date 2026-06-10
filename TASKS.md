@@ -29,7 +29,7 @@ satisfy it.
 3. [A] Hook gate: `.claude/settings.json` + `test-gate.sh` (exit 2 blocks)
        + `lock-guard.sh` — STATUS: done, verified blocking on a planted red
 
-## Stage 1 — Chatbot fix: narration dedupe (done 2026-06-10, review open)
+## Stage 1 — Chatbot fix: narration dedupe (done and shipped 2026-06-10)
 
 4. [H] Describe the bug and define "done" — STATUS: done
        - Bug: re-entering an already-toured view (e.g. planet -> back to
@@ -48,7 +48,8 @@ satisfy it.
 7. [W] Implement — STATUS: done (web/src/narration.ts pure planner +
        ConsoleChat ledger wiring; planner test-pinned, wiring typechecked;
        browser click-through still worth doing at review)
-8. [R] Review the fix — STATUS: OPEN — architect reviews the pushed diff
+8. [R] Review the fix — STATUS: done 2026-06-10 — architect reviewed the
+       diff, clicked through the flow, and deployed to prod (deploy-web.sh)
 
 ## Stage 2 — Roadmap pool (seed from README "To do"; same 5-step shape each)
 
