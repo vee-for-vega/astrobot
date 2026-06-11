@@ -64,11 +64,15 @@ satisfy it.
     questions stop leaking into `define_concept`
 11. Hybrid BM25 + dense retrieval; eval-set audit; grow eval set past 20
 12. Adversarial eval suite — prompt-injection cases against `/api/chat` and
-    the save guard
+    the save guard — STATUS: done 2026-06-10 (tests/test_zzz_adversarial.py,
+    13 locked tests: 8 save_guard structural/intent, 5 endpoint; httpx2 +
+    fastapi added to requirements-test.txt; 38 pytest green)
 13. vitest for `web/` — scaffolding DONE via Stage 1 (`npm test`, gate
     runs it); still pooled: `kepler.ts` solver, typed `api.ts` client
 14. Layered durability — S3 versioned backup of EBS corpus on every save
 15. Session persistence across reloads — store chat log + narration
-    ledger together (localStorage); they must persist or reset as one
+    ledger together (localStorage); they must persist or reset as one —
+    STATUS: done 2026-06-10 (web/src/session.ts + session.test.ts 10 locked
+    tests; ConsoleChat.tsx wired; 19 vitest green, typecheck clean)
 16. Per-user long-term memory — server-side, requires identity/auth
     first (prod API has none today); architect decision on scope

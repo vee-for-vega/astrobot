@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ChatTurn, View } from "../types";
 import { chat, HttpError } from "../api";
 import { planNarration, viewKey } from "../narration";
+import { loadSession, saveSession } from "../session";
 
 // Suggestion prompts shown for the current view. They feed the normal chat
 // pipeline (corpus -> RAG -> Claude), so answers auto-stage for review.
@@ -33,7 +34,8 @@ type Props = {
 };
 
 export default function ConsoleChat({ view }: Props) {
-  const [turns, setTurns] = useState<ChatTurn[]>([]);
+  const _initial = loadSession();
+  const [turns, setTurns] = useState<ChatTurn[]>(_initial.turns);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [input, setInput] = useState("");
@@ -41,14 +43,19 @@ export default function ConsoleChat({ view }: Props) {
   const [typing, setTyping] = useState<{ text: string; shown: number } | null>(null);
   const typingMetaRef = useRef<{ question: string; tier?: 1 | 2 | 3 }>({ question: "" });
   const lastKeyRef = useRef<string | null>("galaxy");
-  // Ledger of views toured this session. In-memory by design: a reload
-  // resets it together with the chat log, so the two never disagree.
-  const narratedRef = useRef<Set<string>>(new Set());
+  // Ledger of views toured this session. Persisted together with chat turns so
+  // both survive a reload or reset atomically — they can never disagree.
+  const narratedRef = useRef<Set<string>>(new Set(_initial.narrated));
 
   const logRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const locked = pending || typing !== null;
+
+  // Persist chat turns + narration ledger together whenever turns change.
+  useEffect(() => {
+    saveSession(turns, [...narratedRef.current]);
+  }, [turns]);
 
   useEffect(() => {
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: "smooth" });
@@ -118,6 +125,7 @@ export default function ConsoleChat({ view }: Props) {
       setTyping({ text: plan.line, shown: 0 });
     } else {
       narratedRef.current.add(plan.key);
+      saveSession(turns, [...narratedRef.current]);
       narrate(plan.question, plan.prefix);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -67,6 +67,25 @@ All Python commands run **from the repo root** (the `api` package imports `src/`
 
 The production API (`api/api_server.py`) has **no auth**. The abuse ceiling is a per-IP sliding-window rate limit plus a hard daily USD cap on Anthropic spend (`api/limits.py`). `/api/login` exists **only** in `api/dev_server.py` as a static-token stub; `PyJWT` in `requirements_local.txt` and `web/src/components/LoginGate.tsx` are vestigial and not wired in. Older docs that say "JWT-authed" are stale — trust the code.
 
+## Agent ownership boundaries
+
+Multi-agent runs are gated by `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in
+`.claude/settings.json`. When the architect authorizes an agent team, ownership
+is strictly partitioned:
+
+| Agent | Owns | Must NOT touch |
+|-------|------|----------------|
+| [A] api agent | `api/`, `tests/` | `src/`, `web/`, `infra/` |
+| [M] ML agent | `src/`, `data/` | `api/`, `web/`, `infra/` |
+| [W] web agent | `web/` | `api/`, `src/`, `infra/` |
+| [R] reviewer | read-only everywhere | no writes |
+
+Cross-boundary writes require architect approval as a new task. An agent may
+read files outside its boundary for context but must not edit them.
+
+The `scope-check.sh` hook (runs on `TaskCreated`) reminds agents to declare
+a locked-tests dependency before any implementation task.
+
 ## Generated / do not edit
 
 `data/chroma_db/` (rebuild with `build_vector_store.py`), `models/` (rebuild with `train_bert.py`), `data/pending_corpus.yml` (review queue), `logs/`, `web/dist/`, `web/node_modules/`, `.env`.
